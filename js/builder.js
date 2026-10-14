@@ -1,4 +1,5 @@
 import { toggleMenuConstrucao, itemSelecionado, setOnItemSelectCallback } from './hud.js';
+import { createBombaAgua } from './bomba-agua.js';
 
 export function setupBuildSystem(scene, groundInterno) {
     let modoConstrucao = false;
@@ -26,22 +27,22 @@ export function setupBuildSystem(scene, groundInterno) {
     const cursorConstrucao = BABYLON.MeshBuilder.CreateBox("cursor", { width: tamanhoGrid, height: 0.06, depth: tamanhoGrid }, scene);
     cursorConstrucao.position.y = 0.06; 
     cursorConstrucao.isVisible = false; 
-    cursorConstrucao.isPickable = false; // Impede que o próprio cursor bloqueie o raio do mouse
-    cursorConstrucao.renderingGroupId = 1; // Renderizado em camada superior para evitar Z-Fighting
+    cursorConstrucao.isPickable = false;
+    cursorConstrucao.renderingGroupId = 1;
 
     // ==========================================================
     // MATERIAIS VIBRANTES (SISTEMA DE LUZ DESATIVADO)
     // ==========================================================
     const matCursorValido = new BABYLON.StandardMaterial("matCursorValido", scene);
     matCursorValido.diffuseColor = new BABYLON.Color3(0, 1, 0.2);
-    matCursorValido.emissiveColor = new BABYLON.Color3(0, 1, 0.2); // Verde Neon
+    matCursorValido.emissiveColor = new BABYLON.Color3(0, 1, 0.2); 
     matCursorValido.disableLighting = true; 
     matCursorValido.zOffset = -2;
     matCursorValido.alpha = 0.75;
 
     const matCursorInvalido = new BABYLON.StandardMaterial("matCursorInvalido", scene);
     matCursorInvalido.diffuseColor = new BABYLON.Color3(1, 0.1, 0.1);
-    matCursorInvalido.emissiveColor = new BABYLON.Color3(1, 0.1, 0.1); // Vermelho Neon
+    matCursorInvalido.emissiveColor = new BABYLON.Color3(1, 0.1, 0.1); 
     matCursorInvalido.disableLighting = true; 
     matCursorInvalido.zOffset = -2;
     matCursorInvalido.alpha = 0.75;
@@ -231,7 +232,6 @@ export function setupBuildSystem(scene, groundInterno) {
         switch (pointerInfo.type) {
             case BABYLON.PointerEventTypes.POINTERMOVE:
                 if (!modoDesconstruir) {
-                    // TRAVA DE SEGURANÇA: Se nenhum item estiver selecionado, oculta o cursor imediatamente
                     if (!modoDesenvolvedorAtivo && !itemSelecionado) {
                         cursorConstrucao.isVisible = false;
                         return;
@@ -265,7 +265,7 @@ export function setupBuildSystem(scene, groundInterno) {
                         const ehZonaAdminF4H4 = (Math.abs(snapLocalZ - 1.5) < 0.1 && snapLocalX <= -4.0 && snapLocalX >= -11.0);
                         const ehZonaAdmin = (snapLocalZ >= -2.0 && snapLocalZ <= 2.0 && snapLocalX <= -4.0 && snapLocalX >= -11.0);
 
-                        // Restrição da Bomba d'água (Apenas Coluna A / Beirada do Rio: snapLocalX === 10.5)
+                        // Restrição da Bomba d'água (Apenas Coluna A / Beirada do Rio)
                         const ehBeiradaRio = (Math.abs(snapLocalX - 10.5) < 0.1); 
                         const restricaoBombaAgua = (itemSelecionado === "bomba_agua" && !ehBeiradaRio);
 
@@ -298,22 +298,29 @@ export function setupBuildSystem(scene, groundInterno) {
                     if (!modoDesconstruir && cursorConstrucao.isVisible && cursorConstrucao.material === matCursorValido) {
                         if (!modoDesenvolvedorAtivo && !itemSelecionado) return;
 
-                        const predio = BABYLON.MeshBuilder.CreateBox("predio", { width: tamanhoGrid, height: 3, depth: tamanhoGrid }, scene);
-                        predio.position = new BABYLON.Vector3(cursorConstrucao.position.x, 1.5, cursorConstrucao.position.z);
-                        
-                        const matPredio = new BABYLON.StandardMaterial("matPredio", scene);
-                        matPredio.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.6); 
-                        predio.material = matPredio;
+                        const posX = cursorConstrucao.position.x;
+                        const posZ = cursorConstrucao.position.z;
 
-                        predio.physicsImpostor = new BABYLON.PhysicsImpostor(predio, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 0, friction: 1 }, scene);
+                        // ==========================================================
+                        // CONSTRUÇÃO DA BOMBA D'ÁGUA
+                        // ==========================================================
+                        if (itemSelecionado === "bomba_agua") {
+                            createBombaAgua(scene, posX, posZ);
+                        }
+
+                        console.log(`Estrutura construída: ${itemSelecionado} em X: ${posX}, Z: ${posZ}`);
                     } 
                     else if (modoDesconstruir) {
                         const pickPredio = scene.pick(scene.pointerX, scene.pointerY, (mesh) => mesh.name === "predio");
                         if (pickPredio.hit) {
-                            if (pickPredio.pickedMesh.physicsImpostor) {
-                                pickPredio.pickedMesh.physicsImpostor.dispose();
+                            // Remove todo o grupo (TransformNode) pai do objeto clicado
+                            const meshAlvo = pickPredio.pickedMesh;
+                            const noRaiz = meshAlvo.parent || meshAlvo;
+
+                            if (noRaiz.physicsImpostor) {
+                                noRaiz.physicsImpostor.dispose();
                             }
-                            pickPredio.pickedMesh.dispose();
+                            noRaiz.dispose();
                             cursorConstrucao.isVisible = false;
                         }
                     }
