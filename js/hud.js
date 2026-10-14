@@ -2,7 +2,13 @@
 // HUD MANAGER, MODAL INICIAL DA ETA E MENU DE CONSTRUÇÃO
 // ==========================================================
 
-export let itemSelecionado = null; // Armazena a opção atual ("bomba_agua", "caixa_agua", etc.)
+export let itemSelecionado = null; 
+let onItemSelectCallback = null;
+
+// Permite registrar um callback acionado quando o item selecionado muda
+export function setOnItemSelectCallback(callback) {
+    onItemSelectCallback = callback;
+}
 
 export function setupHUD() {
     const hudContainer = document.createElement("div");
@@ -122,7 +128,6 @@ function criarMenuConstrucaoHUD() {
         btn.addEventListener("click", () => {
             const item = btn.getAttribute("data-item");
 
-            // Alterna seleção da opção
             if (itemSelecionado === item) {
                 itemSelecionado = null;
                 btn.style.backgroundColor = "#1e293b";
@@ -135,6 +140,10 @@ function criarMenuConstrucaoHUD() {
                 });
                 btn.style.backgroundColor = "#0284c7";
                 btn.style.borderColor = "#38bdf8";
+            }
+
+            if (onItemSelectCallback) {
+                onItemSelectCallback(itemSelecionado);
             }
         });
     });
@@ -150,7 +159,6 @@ export function toggleMenuConstrucao(exibir) {
             menu.style.display = menu.style.display === "none" ? "flex" : "none";
         }
 
-        // Se fechar o menu, limpa a opção selecionada
         if (menu.style.display === "none") {
             itemSelecionado = null;
             const botoes = menu.querySelectorAll(".btn-opcao-construir");
@@ -158,6 +166,10 @@ export function toggleMenuConstrucao(exibir) {
                 b.style.backgroundColor = "#1e293b";
                 b.style.borderColor = "#334155";
             });
+
+            if (onItemSelectCallback) {
+                onItemSelectCallback(null);
+            }
         }
     }
 }

@@ -1,4 +1,4 @@
-import { toggleMenuConstrucao, itemSelecionado } from './hud.js';
+import { toggleMenuConstrucao, itemSelecionado, setOnItemSelectCallback } from './hud.js';
 
 export function setupBuildSystem(scene, groundInterno) {
     let modoConstrucao = false;
@@ -11,26 +11,53 @@ export function setupBuildSystem(scene, groundInterno) {
 
     const matAsfaltoNormal = groundInterno.material;
 
+    // ==========================================================
+    // MATERIAL DA GRADE DE CONSTRUÇÃO
+    // ==========================================================
     const matGridConstrucao = new BABYLON.GridMaterial("matGridConstrucao", scene);
-    matGridConstrucao.mainColor = new BABYLON.Color3(0.2, 0.5, 0.8); 
-    matGridConstrucao.lineColor = new BABYLON.Color3(0.7, 0.85, 1.0);  
+    matGridConstrucao.mainColor = new BABYLON.Color3(0.1, 0.18, 0.28); 
+    matGridConstrucao.lineColor = new BABYLON.Color3(0.2, 0.75, 1.0);  
     matGridConstrucao.gridRatio = tamanhoGrid;                                  
-    matGridConstrucao.opacity = 0.4; 
+    matGridConstrucao.opacity = 0.98; 
 
-    const cursorConstrucao = BABYLON.MeshBuilder.CreateGround("cursor", { width: tamanhoGrid, height: tamanhoGrid }, scene);
-    cursorConstrucao.position.y = 0.05; 
+    // ==========================================================
+    // CURSOR DE DESTAQUE DE CONSTRUÇÃO
+    // ==========================================================
+    const cursorConstrucao = BABYLON.MeshBuilder.CreateBox("cursor", { width: tamanhoGrid, height: 0.06, depth: tamanhoGrid }, scene);
+    cursorConstrucao.position.y = 0.06; 
     cursorConstrucao.isVisible = false; 
+    cursorConstrucao.isPickable = false; // Impede que o próprio cursor bloqueie o raio do mouse
+    cursorConstrucao.renderingGroupId = 1; // Renderizado em camada superior para evitar Z-Fighting
 
+    // ==========================================================
+    // MATERIAIS VIBRANTES (SISTEMA DE LUZ DESATIVADO)
+    // ==========================================================
     const matCursorValido = new BABYLON.StandardMaterial("matCursorValido", scene);
-    matCursorValido.diffuseColor = new BABYLON.Color3(0.1, 0.9, 0.1);
-    matCursorValido.alpha = 0.4;
+    matCursorValido.diffuseColor = new BABYLON.Color3(0, 1, 0.2);
+    matCursorValido.emissiveColor = new BABYLON.Color3(0, 1, 0.2); // Verde Neon
+    matCursorValido.disableLighting = true; 
+    matCursorValido.zOffset = -2;
+    matCursorValido.alpha = 0.75;
 
     const matCursorInvalido = new BABYLON.StandardMaterial("matCursorInvalido", scene);
-    matCursorInvalido.diffuseColor = new BABYLON.Color3(0.9, 0.1, 0.1);
-    matCursorInvalido.alpha = 0.4;
+    matCursorInvalido.diffuseColor = new BABYLON.Color3(1, 0.1, 0.1);
+    matCursorInvalido.emissiveColor = new BABYLON.Color3(1, 0.1, 0.1); // Vermelho Neon
+    matCursorInvalido.disableLighting = true; 
+    matCursorInvalido.zOffset = -2;
+    matCursorInvalido.alpha = 0.75;
 
     const btnConstruir = document.getElementById("btnConstruir");
     const btnDesconstruir = document.getElementById("btnDesconstruir");
+
+    // Alterna o material do chão ao selecionar/desselecionar um item no HUD
+    setOnItemSelectCallback((item) => {
+        if (item) {
+            groundInterno.material = matGridConstrucao;
+        } else {
+            groundInterno.material = matAsfaltoNormal;
+            cursorConstrucao.isVisible = false;
+        }
+    });
 
     // ==========================================================
     // SISTEMA CARTESIANO (Eixos para identificação das células)
@@ -193,6 +220,7 @@ export function setupBuildSystem(scene, groundInterno) {
                 btnConstruir.style.background = "rgba(0, 0, 0, 0.7)";
                 btnDesconstruir.style.background = "#f44336"; 
                 toggleMenuConstrucao(false);
+                groundInterno.material = matAsfaltoNormal;
             }
         });
     }
@@ -203,6 +231,12 @@ export function setupBuildSystem(scene, groundInterno) {
         switch (pointerInfo.type) {
             case BABYLON.PointerEventTypes.POINTERMOVE:
                 if (!modoDesconstruir) {
+                    // TRAVA DE SEGURANÇA: Se nenhum item estiver selecionado, oculta o cursor imediatamente
+                    if (!modoDesenvolvedorAtivo && !itemSelecionado) {
+                        cursorConstrucao.isVisible = false;
+                        return;
+                    }
+
                     const pickResult = scene.pick(scene.pointerX, scene.pointerY, (mesh) => mesh === groundInterno);
 
                     if (pickResult.hit) {
@@ -231,20 +265,13 @@ export function setupBuildSystem(scene, groundInterno) {
                         const ehZonaAdminF4H4 = (Math.abs(snapLocalZ - 1.5) < 0.1 && snapLocalX <= -4.0 && snapLocalX >= -11.0);
                         const ehZonaAdmin = (snapLocalZ >= -2.0 && snapLocalZ <= 2.0 && snapLocalX <= -4.0 && snapLocalX >= -11.0);
 
-                        // ==========================================================
-                        // REGRAS DE SELEÇÃO E RESTRIÇÃO DE ESTRUTURAS
-                        // ==========================================================
-                        // 1. Obriga ter um item selecionado no HUD
-                        const semItemSelecionado = (!itemSelecionado);
-
-                        // 2. Restrição da Bomba d'água (Apenas Coluna A / Beirada do Rio)
+                        // Restrição da Bomba d'água (Apenas Coluna A / Beirada do Rio: snapLocalX === 10.5)
                         const ehBeiradaRio = (Math.abs(snapLocalX - 10.5) < 0.1); 
                         const restricaoBombaAgua = (itemSelecionado === "bomba_agua" && !ehBeiradaRio);
 
-                        // 3. Checagem de sobreposição de construções existentes
                         const jaTemPredio = scene.meshes.some(m => m.name === "predio" && Math.abs(m.position.x - posX) < 0.1 && Math.abs(m.position.z - posZ) < 0.1);
 
-                        if (!modoDesenvolvedorAtivo && (semItemSelecionado || !dentroDaAreaX || !dentroDaAreaZ || ehZonaRestritaA1H2 || ehZonaAdminF4H4 || ehZonaAdmin || jaTemPredio || restricaoBombaAgua)) {
+                        if (!modoDesenvolvedorAtivo && (!dentroDaAreaX || !dentroDaAreaZ || ehZonaRestritaA1H2 || ehZonaAdminF4H4 || ehZonaAdmin || jaTemPredio || restricaoBombaAgua)) {
                             cursorConstrucao.material = matCursorInvalido;
                         } else {
                             cursorConstrucao.material = matCursorValido;
@@ -269,7 +296,6 @@ export function setupBuildSystem(scene, groundInterno) {
             case BABYLON.PointerEventTypes.POINTERDOWN:
                 if (pointerInfo.event.button === 0) { 
                     if (!modoDesconstruir && cursorConstrucao.isVisible && cursorConstrucao.material === matCursorValido) {
-                        // Trava para garantir que só constrói se algo estiver selecionado
                         if (!modoDesenvolvedorAtivo && !itemSelecionado) return;
 
                         const predio = BABYLON.MeshBuilder.CreateBox("predio", { width: tamanhoGrid, height: 3, depth: tamanhoGrid }, scene);
@@ -293,8 +319,6 @@ export function setupBuildSystem(scene, groundInterno) {
                     }
                 }
                 break;
-
-                
         }
     });
 }
