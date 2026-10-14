@@ -1,11 +1,8 @@
-// ==========================================================
-// HUD MANAGER, MODAL INICIAL DA ETA E MENU DE CONSTRUÇÃO
-// ==========================================================
+import { ativarCamera } from './camera.js';
 
 export let itemSelecionado = null; 
 let onItemSelectCallback = null;
 
-// Permite registrar um callback acionado quando o item selecionado muda
 export function setOnItemSelectCallback(callback) {
     onItemSelectCallback = callback;
 }
@@ -67,7 +64,7 @@ function criarMenuConstrucaoHUD() {
     menu.style.width = "220px";
     menu.style.boxShadow = "0 8px 16px rgba(0,0,0,0.6)";
     menu.style.zIndex = "100";
-    menu.style.display = "none"; // Inicia oculto
+    menu.style.display = "none";
     menu.style.flexDirection = "column";
     menu.style.gap = "10px";
     menu.style.fontFamily = "Arial, sans-serif";
@@ -149,7 +146,6 @@ function criarMenuConstrucaoHUD() {
     });
 }
 
-// Alterna visibilidade do Menu de Construção
 export function toggleMenuConstrucao(exibir) {
     const menu = document.getElementById("menu-construcao-hud");
     if (menu) {
@@ -263,6 +259,9 @@ function criarModalNomeETA() {
         
         atualizarNomeETA(nomeFinal);
         modalOverlay.remove();
+
+        // Ativa o controle de movimentação e rotação da câmera
+        ativarCamera();
     };
 
     btn.addEventListener("click", confirmar);
@@ -273,10 +272,6 @@ function criarModalNomeETA() {
         }
     });
 }
-
-// ==========================================================
-// FUNÇÕES DE ATUALIZAÇÃO DA HUD E PLACA
-// ==========================================================
 
 export function atualizarNomeETA(nome) {
     const el = document.getElementById("hud-titulo");

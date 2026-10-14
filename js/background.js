@@ -1,12 +1,8 @@
+import { createRio } from './rio.js';
+
 export function createBackground(scene) {
-    // 1. RIO
-    const river = BABYLON.MeshBuilder.CreateGround("river", { width: 15, height: 150 }, scene);
-    river.position = new BABYLON.Vector3(25, 0.05, 0); 
-    const matRiver = new BABYLON.StandardMaterial("matRiver", scene);
-    matRiver.diffuseColor = new BABYLON.Color3(0.1, 0.4, 0.8);
-    matRiver.alpha = 0.85;
-    matRiver.specularColor = new BABYLON.Color3(0.8, 0.8, 0.8);
-    river.material = matRiver;
+    // 1. RIO ANIMADO (MÓDULO INDEPENDENTE)
+    createRio(scene);
 
     // 2. RUA DE ACESSO
     const matAsfalto = new BABYLON.StandardMaterial("matAsfaltoBg", scene);

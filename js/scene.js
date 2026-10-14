@@ -71,7 +71,7 @@ export function createScene(engine, canvas) {
     // ==========================================================
     // 2. CÂMERA
     // ==========================================================
-    const camera = setupCamera(scene, canvas, centroAdminHitbox);
+    const camera = setupCamera(scene, canvas);
 
     // ==========================================================
     // 3. MAPA PRINCIPAL (Ground e Asfalto Base)
