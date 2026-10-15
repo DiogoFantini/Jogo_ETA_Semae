@@ -6,10 +6,9 @@ export function createDecorations(scene) {
     // 1. PISO DE ASFALTO UNIFICADO DO ESTACIONAMENTO (A1 ATÉ C2)
     // ==========================================================
     const matAsfaltoEstac = new BABYLON.StandardMaterial("matAsfaltoEstac", scene);
-    matAsfaltoEstac.diffuseColor = BABYLON.Color3.FromHexString("#2d3238"); // Asfalto escuro
+    matAsfaltoEstac.diffuseColor = BABYLON.Color3.FromHexString("#2d3238");
     matAsfaltoEstac.specularColor = new BABYLON.Color3(0.08, 0.08, 0.08);
 
-    // Bloco único contínuo (X: 3.5 a 17.0, Z: -10.0 a -3.0)
     const pisoEstacionamento = BABYLON.MeshBuilder.CreateGround("pisoEstacionamentoA1C2", { width: 13.5, height: 7.0 }, scene);
     pisoEstacionamento.position = new BABYLON.Vector3(10.25, 0.022, -6.5);
     pisoEstacionamento.material = matAsfaltoEstac;
@@ -35,27 +34,24 @@ export function createDecorations(scene) {
     bordaDir.material = matGuiaConcreto;
 
     // ==========================================================
-    // 2. VAGAS DIAGONAIS RENTES AO MURO (CAINDO PARA A DIREITA)
+    // 2. VAGAS DIAGONAIS RENTES AO MURO
     // ==========================================================
     const matAmarelo = new BABYLON.StandardMaterial("matAmareloSinalizacao", scene);
     matAmarelo.diffuseColor = new BABYLON.Color3(0.95, 0.8, 0.1);
 
-    // Função para criar linhas amarelas inclinadas rente ao muro
     const criarLinhaVagaRenteMuro = (x, z) => {
         const linha = BABYLON.MeshBuilder.CreateBox("linhaVagaRenteMuro", { width: 0.12, height: 0.01, depth: 3.0 }, scene);
         linha.position = new BABYLON.Vector3(x, 0.026, z);
-        linha.rotation.y = (-35 * Math.PI) / 180; // Inclinado caindo para a direita
+        linha.rotation.y = (-35 * Math.PI) / 180;
         linha.material = matAmarelo;
     };
 
-    // Linhas demarcatórias ajustadas:
-    // Removidas as linhas em frente ao portão e criada a nova vaga no círculo vermelho (15.8)
     criarLinhaVagaRenteMuro(9.2, -8.5);
     criarLinhaVagaRenteMuro(11.4, -8.5);
     criarLinhaVagaRenteMuro(13.6, -8.5);
-    criarLinhaVagaRenteMuro(15.8, -8.5); // Nova vaga da esquerda
+    criarLinhaVagaRenteMuro(15.8, -8.5);
 
-    // --- CARROS 3D RECUADOS (LIBERANDO TOTALMENTE A ENTRADA) ---
+    // --- CARROS 3D RECUADOS ---
     const criarCarro3D = (x, z, anguloGrad, corHex) => {
         const matCarro = new BABYLON.StandardMaterial("matCarro", scene);
         matCarro.diffuseColor = BABYLON.Color3.FromHexString(corHex);
@@ -95,9 +91,8 @@ export function createDecorations(scene) {
         grupoCarro.rotation.y = (anguloGrad * Math.PI) / 180;
     };
 
-    // Carros posicionados mais recuados nas vagas disponíveis
-    criarCarro3D(10.3, -8.5, -35, "#b91c1c"); // Carro Vermelho
-    criarCarro3D(12.5, -8.5, -35, "#f59e0b"); // Carro Amarelo
+    criarCarro3D(10.3, -8.5, -35, "#b91c1c");
+    criarCarro3D(12.5, -8.5, -35, "#f59e0b");
 
     // ==========================================================
     // 3. PRAÇA E FONTE D'ÁGUA EM G3
@@ -110,8 +105,8 @@ export function createDecorations(scene) {
     pracinha.position = new BABYLON.Vector3(centroX, 0.025, centroZ - 4.5);
     pracinha.material = matGramaNormal;
 
-    const matPedra = new BABYLON.StandardMaterial("matPedra", scene);
-    matPedra.diffuseColor = new BABYLON.Color3(0.8, 0.8, 0.85);
+    const matPedraFonte = new BABYLON.StandardMaterial("matPedraFonte", scene);
+    matPedraFonte.diffuseColor = new BABYLON.Color3(0.8, 0.8, 0.85);
 
     const matAgua = new BABYLON.StandardMaterial("matAgua", scene);
     matAgua.diffuseColor = new BABYLON.Color3(0.2, 0.7, 0.9);
@@ -122,7 +117,7 @@ export function createDecorations(scene) {
 
     const baseFonte = BABYLON.MeshBuilder.CreateCylinder("baseFonte", { diameter: 2.6, height: 0.3 }, scene);
     baseFonte.position = new BABYLON.Vector3(fontePosX, 0.175, fontePosZ);
-    baseFonte.material = matPedra;
+    baseFonte.material = matPedraFonte;
 
     const aguaFonte = BABYLON.MeshBuilder.CreateCylinder("aguaFonte", { diameter: 2.3, height: 0.35 }, scene);
     aguaFonte.position = new BABYLON.Vector3(fontePosX, 0.175, fontePosZ);
@@ -130,14 +125,14 @@ export function createDecorations(scene) {
 
     const pilarFonte = BABYLON.MeshBuilder.CreateCylinder("pilarFonte", { diameter: 0.5, height: 1.2 }, scene);
     pilarFonte.position = new BABYLON.Vector3(fontePosX, 0.7, fontePosZ);
-    pilarFonte.material = matPedra;
+    pilarFonte.material = matPedraFonte;
 
     const topoFonte = BABYLON.MeshBuilder.CreateCylinder("topoFonte", { diameter: 1.2, height: 0.15 }, scene);
     topoFonte.position = new BABYLON.Vector3(fontePosX, 1.3, fontePosZ);
-    topoFonte.material = matPedra;
+    topoFonte.material = matPedraFonte;
 
     // ==========================================================
-    // 4. PLACA IDENTIFICADORA DA ETA (DO LADO DE FORA)
+    // 4. PLACA IDENTIFICADORA DA ETA
     // ==========================================================
     const matPostePlaca = new BABYLON.StandardMaterial("matPostePlaca", scene);
     matPostePlaca.diffuseColor = new BABYLON.Color3(0.2, 0.2, 0.25);
@@ -189,4 +184,186 @@ export function createDecorations(scene) {
 
     desenharPlaca("ETA Central");
     window.atualizarPlacaETA = desenharPlaca;
+
+    // ==========================================================
+    // 5. DECORAÇÃO NATURAL (DISTRIBUIÇÃO AMPLA SEM COLISÃO)
+    // ==========================================================
+    let semente = 421015;
+    const rng = () => {
+        semente |= 0; semente = (semente + 0x6D2B79F5) | 0;
+        let t = Math.imul(semente ^ (semente >>> 15), 1 | semente);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    const entre = (a, b) => a + rng() * (b - a);
+    const escolher = (arr) => arr[Math.floor(rng() * arr.length)];
+    const hex = (h) => BABYLON.Color3.FromHexString(h);
+
+    const matNat = (nome, corHex, spec = 0.05) => {
+        const m = new BABYLON.StandardMaterial(nome, scene);
+        m.diffuseColor = hex(corHex);
+        m.specularColor = new BABYLON.Color3(spec, spec, spec);
+        return m;
+    };
+
+    const gruposNat = new Map();
+    const addGroupNat = (mesh, material) => {
+        mesh.material = material;
+        if (!gruposNat.has(material)) gruposNat.set(material, []);
+        gruposNat.get(material).push(mesh);
+        return mesh;
+    };
+
+    const matTroncoNat = matNat("decTroncoNat", "#5c3d24");
+    const matFolhaViva1 = matNat("decFolhaViva1", "#22c55e", 0.02);
+    const matFolhaViva2 = matNat("decFolhaViva2", "#16a34a", 0.02);
+    const matFolhaViva3 = matNat("decFolhaViva3", "#4ade80", 0.02);
+    const matsFolhas = [matFolhaViva1, matFolhaViva2, matFolhaViva3];
+
+    const matMatinho = matNat("decMatinho", "#15803d");
+    matMatinho.backFaceCulling = false;
+
+    const matFlorAmarela = matNat("decFlorAmarela", "#facc15", 0.1);
+    const matFlorVermelha = matNat("decFlorVermelha", "#ef4444", 0.1);
+    const matFlorBranca = matNat("decFlorBranca", "#f8fafc", 0.1);
+    const matFlorRoxa = matNat("decFlorRoxa", "#a855f7", 0.1);
+    const matsFlores = [matFlorAmarela, matFlorVermelha, matFlorBranca, matFlorRoxa];
+
+    const matPedra1 = matNat("decPedra1", "#94a3b8", 0.1);
+    const matPedra2 = matNat("decPedra2", "#64748b", 0.1);
+    const matsPedras = [matPedra1, matPedra2];
+
+    const posicoesArvores = [];
+
+    const criarArvoreNat = (x, z) => {
+        const esc = entre(0.85, 1.35);
+        const altTronco = entre(1.8, 2.4) * esc;
+        const diaTronco = entre(0.3, 0.45) * esc;
+
+        const tronco = BABYLON.MeshBuilder.CreateCylinder("troncoNat", { diameter: diaTronco, height: altTronco, tessellation: 7 }, scene);
+        tronco.position.set(x, altTronco / 2, z);
+        addGroupNat(tronco, matTroncoNat);
+
+        const folhaMat = escolher(matsFolhas);
+        const tamCopa = entre(2.2, 3.2) * esc;
+
+        const copaCentral = BABYLON.MeshBuilder.CreateSphere("copaNat", { diameter: tamCopa, segments: 7 }, scene);
+        copaCentral.position.set(x, altTronco + tamCopa * 0.35, z);
+        addGroupNat(copaCentral, folhaMat);
+
+        const topoCopa = BABYLON.MeshBuilder.CreateSphere("copaTopoNat", { diameter: tamCopa * 0.75, segments: 6 }, scene);
+        topoCopa.position.set(x + entre(-0.3, 0.3), altTronco + tamCopa * 0.75, z + entre(-0.3, 0.3));
+        addGroupNat(topoCopa, folhaMat);
+
+        posicoesArvores.push({ x, z });
+    };
+
+    const criarPedraNat = (x, z) => {
+        const tamX = entre(0.4, 1.2);
+        const tamY = entre(0.2, 0.6);
+        const tamZ = entre(0.4, 1.0);
+
+        const pedra = BABYLON.MeshBuilder.CreateBox("pedraNat", { width: tamX, height: tamY, depth: tamZ }, scene);
+        pedra.position.set(x, tamY / 2, z);
+        pedra.rotation.set(entre(0, 0.3), entre(0, Math.PI * 2), entre(0, 0.3));
+        addGroupNat(pedra, escolher(matsPedras));
+    };
+
+    const criarTufoMatinho = (x, z) => {
+        const esc = entre(0.4, 0.8);
+        const numLaminas = 3;
+
+        for (let i = 0; i < numLaminas; i++) {
+            const lamina = BABYLON.MeshBuilder.CreatePlane("matinhoNat", { width: 0.6 * esc, height: 0.8 * esc }, scene);
+            lamina.position.set(x, (0.8 * esc) / 2, z);
+            lamina.rotation.y = (Math.PI / numLaminas) * i + entre(-0.2, 0.2);
+            addGroupNat(lamina, matMatinho);
+        }
+    };
+
+    const criarFlorNat = (x, z) => {
+        const esc = entre(0.3, 0.6);
+        const matFlor = escolher(matsFlores);
+
+        const haste = BABYLON.MeshBuilder.CreateCylinder("hasteNat", { diameter: 0.05 * esc, height: 0.5 * esc }, scene);
+        haste.position.set(x, (0.5 * esc) / 2, z);
+        addGroupNat(haste, matMatinho);
+
+        const petala = BABYLON.MeshBuilder.CreateSphere("petalaNat", { diameter: 0.3 * esc, segments: 5 }, scene);
+        petala.position.set(x, 0.5 * esc, z);
+        addGroupNat(petala, matFlor);
+    };
+
+    // VALIDAÇÃO DE POSIÇÃO (EVITA RUA, DENTRO DA ETA, RIO E SEGREGA ÁRVORES)
+    const dentroDaZonaPermitida = (x, z) => {
+        // 1. Área Muros da ETA
+        if (x >= -8.5 && x <= 18.0 && z >= -11.0 && z <= 11.0) return false;
+
+        // 2. Estacionamento da ETA
+        if (x >= 3.0 && x <= 17.5 && z >= -11.0 && z <= -2.5) return false;
+
+        // 3. Rua de Acesso da Entrada (Rua que vai do Portão para o lado direito)
+        if (x >= 3.0 && x <= 7.0 && z < -10.0) return false;
+
+        // 4. Leito do Rio (Calha de Água)
+        if (x >= 17.5 && x <= 32.5) return false;
+
+        // 5. Cidade / Background ao Fundo
+        if (z < -22.0) return false;
+
+        // 6. Limite do Terreno
+        if (x < -60.0 || x > 60.0 || z > 65.0) return false;
+
+        return true;
+    };
+
+    const distanciaMinimaArvore = (x, z, distMin = 5.0) => {
+        return !posicoesArvores.some(p => Math.hypot(p.x - x, p.z - z) < distMin);
+    };
+
+    const gerarVegetacaoExterna = () => {
+        // Gerador de Árvores com Distanciamento Mínimo
+        let tentativasArvore = 0;
+        while (posicoesArvores.length < 80 && tentativasArvore < 400) {
+            tentativasArvore++;
+            const x = entre(-55, 55);
+            const z = entre(-20, 60);
+
+            if (dentroDaZonaPermitida(x, z) && distanciaMinimaArvore(x, z, 5.2)) {
+                criarArvoreNat(x, z);
+            }
+        }
+
+        // Pedras
+        for (let i = 0; i < 90; i++) {
+            const x = entre(-55, 55);
+            const z = entre(-20, 60);
+            if (dentroDaZonaPermitida(x, z)) criarPedraNat(x, z);
+        }
+
+        // Tufos de Matinho
+        for (let i = 0; i < 200; i++) {
+            const x = entre(-55, 55);
+            const z = entre(-20, 60);
+            if (dentroDaZonaPermitida(x, z)) criarTufoMatinho(x, z);
+        }
+
+        // Flores
+        for (let i = 0; i < 150; i++) {
+            const x = entre(-55, 55);
+            const z = entre(-20, 60);
+            if (dentroDaZonaPermitida(x, z)) criarFlorNat(x, z);
+        }
+    };
+
+    gerarVegetacaoExterna();
+
+    gruposNat.forEach((malhas, material) => {
+        if (malhas.length === 0) return;
+        const unida = malhas.length === 1 ? malhas[0] : BABYLON.Mesh.MergeMeshes(malhas, true, true);
+        if (!unida) return;
+        unida.material = material;
+        unida.isPickable = false;
+        unida.name = "decoracaoNat_" + material.name;
+    });
 }
