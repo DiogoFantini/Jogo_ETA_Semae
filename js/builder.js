@@ -19,6 +19,7 @@ import {
     reembolsarDinheiro,
     CUSTOS_ESTRUTURAS
 } from './condicoes.js';
+import { adicionarEstruturaAgua, removerEstruturaAgua } from './sistema-agua.js';
 
 export function setupBuildSystem(scene, groundInterno) {
     let modoConstrucao = false;
@@ -159,7 +160,6 @@ export function setupBuildSystem(scene, groundInterno) {
 
                         const jaTemPredio = scene.meshes.some(m => m.name === "predio" && Math.abs(m.position.x - posX) < 0.1 && Math.abs(m.position.z - posZ) < 0.1);
 
-                        // Verificação de Limite de Terreno e Dinheiro
                         const limiteAtingido = !podeConstruir();
                         const custoAtual = CUSTOS_ESTRUTURAS[itemSelecionado] || 0;
                         const semDinheiro = !podePagar(custoAtual);
@@ -199,13 +199,11 @@ export function setupBuildSystem(scene, groundInterno) {
                         if (!isDevModeActive()) {
                             if (!itemSelecionado) return;
                             
-                            // Validação do Limite de Terrenos
                             if (!podeConstruir()) {
                                 exibirPopUpLimite();
                                 return;
                             }
 
-                            // Validação do Saldo Financeiro
                             const custo = CUSTOS_ESTRUTURAS[itemSelecionado] || 0;
                             if (!podePagar(custo)) {
                                 exibirPopUpSemDinheiro();
@@ -227,11 +225,12 @@ export function setupBuildSystem(scene, groundInterno) {
                             }
 
                             if (novaEstrutura) {
-                                novaEstrutura.tipoItem = itemSelecionado; // Salva a identificação para o reembolso
+                                novaEstrutura.tipoItem = itemSelecionado;
                                 if (!isDevModeActive()) {
                                     gastarDinheiro(custo);
                                     adicionarConstrucao();
                                 }
+                                adicionarEstruturaAgua(itemSelecionado);
                             }
 
                             console.log(`Estrutura construída: ${itemSelecionado} em X: ${posX}, Z: ${posZ}`);
@@ -254,7 +253,8 @@ export function setupBuildSystem(scene, groundInterno) {
                             
                             removerConstrucao();
                             if (tipoItem) {
-                                reembolsarDinheiro(tipoItem); // Devolve o valor ao jogador ao demolir
+                                reembolsarDinheiro(tipoItem);
+                                removerEstruturaAgua(tipoItem);
                             }
 
                             cursorConstrucao.isVisible = false;

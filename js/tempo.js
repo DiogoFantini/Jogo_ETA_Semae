@@ -1,30 +1,46 @@
 import { atualizarRelogioHUD } from './hud.js';
 
-let dataAtual = new Date(2026, 9, 15, 7, 0, 0); // Inicio: 15/10/2026 07:00
-let multiplicadorVelocidade = 1; // Velocidade padrão 1x
+let dataAtual = new Date(2026, 9, 15, 7, 0, 0); // Início: 15/10/2026 07:00
+let multiplicadorVelocidade = 1; // 1x, 2x, 3x, 5x, etc.
 let emPausa = false;
-let intervaloRelogio = null;
+let relogioIniciado = false;
+let ultimoTimestamp = null;
 
-// ==========================================================
-// CÁLCULO DE PROPORÇÃO DE TEMPO
-// 24 Horas in-game (86.400.000 ms) = 10 Minutos reais (600.000 ms)
-// Fator de escala base (1x): 86.400.000 / 600.000 = 144
-// ==========================================================
+// 24 Horas in-game (86.400s) = 10 Minutos reais (600s) a 1x
 const FATOR_TEMPO_BASE = 144; 
-const INTERVALO_TICK_MS = 100; // Atualiza a cada 100ms para movimentação fluída
 
-export function iniciarRelogio() {
-    if (intervaloRelogio) return;
+export function atualizarExibicao() {
+    const horas = String(dataAtual.getHours()).padStart(2, '0');
+    const minutos = String(dataAtual.getMinutes()).padStart(2, '0');
+    const dia = String(dataAtual.getDate()).padStart(2, '0');
+    const mes = String(dataAtual.getMonth() + 1).padStart(2, '0');
+    const ano = dataAtual.getFullYear();
+
+    const stringFormatada = `${horas}:${minutos} - ${dia}/${mes}/${ano}`;
+    atualizarRelogioHUD(stringFormatada);
+}
+
+export function iniciarRelogio(scene) {
+    if (relogioIniciado) return;
+    relogioIniciado = true;
 
     atualizarExibicao();
 
-    intervaloRelogio = setInterval(() => {
-        if (!emPausa && multiplicadorVelocidade > 0) {
-            const avancoInGameMs = INTERVALO_TICK_MS * FATOR_TEMPO_BASE * multiplicadorVelocidade;
-            dataAtual = new Date(dataAtual.getTime() + avancoInGameMs);
-            atualizarExibicao();
+    function loopTempo(timestamp) {
+        if (ultimoTimestamp !== null) {
+            const dt = (timestamp - ultimoTimestamp) / 1000;
+
+            if (!emPausa && multiplicadorVelocidade > 0) {
+                const avancoInGameMs = dt * FATOR_TEMPO_BASE * multiplicadorVelocidade * 1000;
+                dataAtual = new Date(dataAtual.getTime() + avancoInGameMs);
+                atualizarExibicao();
+            }
         }
-    }, INTERVALO_TICK_MS);
+        ultimoTimestamp = timestamp;
+        requestAnimationFrame(loopTempo);
+    }
+
+    requestAnimationFrame(loopTempo);
 }
 
 export function pausarRelogio() {
@@ -37,7 +53,12 @@ export function despausarRelogio() {
 
 export function setVelocidadeTempo(multiplicador) {
     multiplicadorVelocidade = multiplicador;
-    emPausa = false; // Despausa automaticamente ao selecionar uma velocidade
+    emPausa = false;
+}
+
+export function setHorarioJogo(horas, minutos) {
+    dataAtual.setHours(horas, minutos, 0, 0);
+    atualizarExibicao();
 }
 
 export function getVelocidadeAtual() {
@@ -52,13 +73,24 @@ export function getDataAtual() {
     return dataAtual;
 }
 
-function atualizarExibicao() {
-    const horas = String(dataAtual.getHours()).padStart(2, '0');
-    const minutos = String(dataAtual.getMinutes()).padStart(2, '0');
-    const dia = String(dataAtual.getDate()).padStart(2, '0');
-    const mes = String(dataAtual.getMonth() + 1).padStart(2, '0');
-    const ano = dataAtual.getFullYear();
+// ==========================================================
+// REGISTRADOR GLOBAL DE ANIMAÇÕES DO JOGO (SUPORTE A PAUSE)
+// ==========================================================
 
-    const stringFormatada = `${horas}:${minutos} - ${dia}/${mes}/${ano}`;
-    atualizarRelogioHUD(stringFormatada);
+export function getGameDeltaTime(scene) {
+    if (emPausa) return 0;
+    const realDt = scene.getEngine().getDeltaTime() / 1000;
+    return realDt * multiplicadorVelocidade;
+}
+
+export function registerGameAnimation(scene, callback) {
+    if (!scene) return;
+    return scene.registerBeforeRender(() => {
+        scene.particlesEnabled = !emPausa;
+
+        if (emPausa) return;
+
+        const dt = (scene.getEngine().getDeltaTime() / 1000) * multiplicadorVelocidade;
+        callback(dt, scene);
+    });
 }

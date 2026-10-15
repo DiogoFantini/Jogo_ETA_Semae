@@ -6,16 +6,34 @@ import {
     despausarRelogio, 
     setVelocidadeTempo 
 } from './tempo.js';
+import { CONFIG_BOMBA_AGUA, CONFIG_CAIXA_AGUA } from './variaveis-importantes.js';
 
 export let itemSelecionado = null; 
 let onItemSelectCallback = null;
+
+// ==========================================================
+// INFORMAÇÕES EDUCATIVAS E TÉCNICAS DAS ESTRUTURAS
+// ==========================================================
+const INFO_ESTRUTURAS = {
+    bomba_agua: {
+        titulo: "💧 Bomba d'água (SEMAE)",
+        descricao: CONFIG_BOMBA_AGUA.descricao,
+        vazao: CONFIG_BOMBA_AGUA.vazaoTextoCard,
+        energia: CONFIG_BOMBA_AGUA.energia
+    },
+    caixa_agua: {
+        titulo: "🚰 Caixa d'água Elevada",
+        descricao: CONFIG_CAIXA_AGUA.descricao,
+        vazao: CONFIG_CAIXA_AGUA.reservaTexto,
+        energia: CONFIG_CAIXA_AGUA.energia
+    }
+};
 
 export function setOnItemSelectCallback(callback) {
     onItemSelectCallback = callback;
 }
 
-export function setupHUD() {
-    // Container lateral para alinhar o HUD e a barra de controle de tempo logo abaixo
+export function setupHUD(scene) {
     const sidebarContainer = document.createElement("div");
     sidebarContainer.id = "hud-sidebar-container";
     sidebarContainer.style.position = "absolute";
@@ -50,7 +68,7 @@ export function setupHUD() {
         </div>
         <div>💰 Dinheiro: <span id="hud-dinheiro" style="font-weight: bold; float: right; color: #4ade80;">R$ 450.000</span></div>
         <div>🏗️ Terreno utilizado: <span id="hud-terreno" style="font-weight: bold; float: right; color: #fde047;">0/4</span></div>
-        <div>💧 Água distribuída: <span id="hud-distribuida" style="font-weight: bold; float: right; color: #38bdf8;">0</span></div>
+        <div>💧 Água distribuída: <span id="hud-distribuida" style="font-weight: bold; float: right; color: #38bdf8;">0 m³</span></div>
         <div>🧪 Água tratada: <span id="hud-tratada" style="font-weight: bold; float: right; color: #4ade80;">0%</span></div>
         <div style="margin-top: 5px; padding-top: 10px; border-top: 1px dashed #475569;">
             🎯 Meta de Abastecimento:<br>
@@ -63,7 +81,7 @@ export function setupHUD() {
 
     sidebarContainer.appendChild(hudContainer);
 
-    // 2. Barra de Controle de Tempo (Fora do HUD, posicionada logo abaixo)
+    // 2. Barra de Controle de Tempo
     const barraTempo = document.createElement("div");
     barraTempo.id = "barra-controle-tempo";
     barraTempo.style.backgroundColor = "rgba(15, 23, 42, 0.95)";
@@ -90,7 +108,7 @@ export function setupHUD() {
 
     setupEventosControleTempo(barraTempo);
 
-    criarModalNomeETA();
+    criarModalNomeETA(scene);
     criarMenuConstrucaoHUD();
 }
 
@@ -157,6 +175,9 @@ function setupEventosControleTempo(container) {
     });
 }
 
+// ==========================================================
+// MENU DE CONSTRUÇÃO E CARD EXPLICATIVO (TOOLTIP)
+// ==========================================================
 function criarMenuConstrucaoHUD() {
     const menu = document.createElement("div");
     menu.id = "menu-construcao-hud";
@@ -228,11 +249,31 @@ function criarMenuConstrucaoHUD() {
 
     document.body.appendChild(menu);
 
+    const cardInfo = document.createElement("div");
+    cardInfo.id = "card-info-estrutura";
+    cardInfo.style.position = "absolute";
+    cardInfo.style.top = "75px";
+    cardInfo.style.left = "285px";
+    cardInfo.style.backgroundColor = "rgba(15, 23, 42, 0.98)";
+    cardInfo.style.border = "2px solid #38bdf8";
+    cardInfo.style.borderRadius = "10px";
+    cardInfo.style.padding = "15px";
+    cardInfo.style.width = "290px";
+    cardInfo.style.boxShadow = "0 8px 20px rgba(0,0,0,0.7)";
+    cardInfo.style.zIndex = "101";
+    cardInfo.style.display = "none";
+    cardInfo.style.flexDirection = "column";
+    cardInfo.style.gap = "10px";
+    cardInfo.style.fontFamily = "Arial, sans-serif";
+    cardInfo.style.color = "#ffffff";
+    cardInfo.style.pointerEvents = "none";
+    document.body.appendChild(cardInfo);
+
     const botoes = menu.querySelectorAll(".btn-opcao-construir");
     botoes.forEach((btn) => {
-        btn.addEventListener("click", () => {
-            const item = btn.getAttribute("data-item");
+        const item = btn.getAttribute("data-item");
 
+        btn.addEventListener("click", () => {
             if (itemSelecionado === item) {
                 itemSelecionado = null;
                 btn.style.backgroundColor = "#1e293b";
@@ -251,11 +292,39 @@ function criarMenuConstrucaoHUD() {
                 onItemSelectCallback(itemSelecionado);
             }
         });
+
+        btn.addEventListener("mouseenter", () => {
+            const info = INFO_ESTRUTURAS[item];
+            if (info) {
+                cardInfo.innerHTML = `
+                    <div style="font-weight: bold; color: #38bdf8; font-size: 15px; border-bottom: 1px solid #334155; padding-bottom: 6px;">
+                        ${info.titulo}
+                    </div>
+                    <div style="font-size: 13px; color: #cbd5e1; line-height: 1.4;">
+                        ${info.descricao}
+                    </div>
+                    <div style="border-top: 1px dashed #334155; padding-top: 8px; font-size: 12px; display: flex; flex-direction: column; gap: 4px;">
+                        <div>🌊 <strong style="color: #94a3b8;">Vazão de Captação:</strong><br><span style="color: #38bdf8; font-weight: bold; display: block; margin-top: 2px;">${info.vazao}</span></div>
+                        <div style="margin-top: 4px;">⚡ <strong style="color: #94a3b8;">Gasto de Energia:</strong> <span style="color: #f87171; font-weight: bold; float: right;">${info.energia}</span></div>
+                    </div>
+                `;
+                
+                const rectBtn = btn.getBoundingClientRect();
+                cardInfo.style.top = `${rectBtn.top}px`;
+                cardInfo.style.display = "flex";
+            }
+        });
+
+        btn.addEventListener("mouseleave", () => {
+            cardInfo.style.display = "none";
+        });
     });
 }
 
 export function toggleMenuConstrucao(exibir) {
     const menu = document.getElementById("menu-construcao-hud");
+    const cardInfo = document.getElementById("card-info-estrutura");
+
     if (menu) {
         if (exibir !== undefined) {
             menu.style.display = exibir ? "flex" : "none";
@@ -265,6 +334,8 @@ export function toggleMenuConstrucao(exibir) {
 
         if (menu.style.display === "none") {
             itemSelecionado = null;
+            if (cardInfo) cardInfo.style.display = "none";
+
             const botoes = menu.querySelectorAll(".btn-opcao-construir");
             botoes.forEach(b => {
                 b.style.backgroundColor = "#1e293b";
@@ -278,7 +349,7 @@ export function toggleMenuConstrucao(exibir) {
     }
 }
 
-function criarModalNomeETA() {
+function criarModalNomeETA(scene) {
     const modalOverlay = document.createElement("div");
     modalOverlay.id = "modal-nome-overlay";
     modalOverlay.style.position = "fixed";
@@ -369,7 +440,7 @@ function criarModalNomeETA() {
         modalOverlay.remove();
 
         ativarCamera();
-        iniciarRelogio();
+        iniciarRelogio(scene);
     };
 
     btn.addEventListener("click", confirmar);

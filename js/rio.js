@@ -1,18 +1,13 @@
 // ============================================================================
 // rio.js — Rio animado (correnteza suave, ondas 3D, partículas e peixes)
-//
-// Como funciona (resumo):
-//  - A base da água continua plana para não abrir "buracos verdes" na grama.
-//    Duas texturas rolando criam a correnteza; pequenas ondas 3D independentes
-//    ficam acima da superfície, crescem e diminuem até desaparecer.
-//  - O rio é dividido em 2 trechos para NÃO cobrir a avenida/ponte (z -68..-62).
-//  - Partículas: brilhos na superfície, espuma nas margens e respingos.
-//  - Peixes 3D com cauda animada saltam em arco, com respingo e ondulação.
+// Integrado com o sistema de tempo e pause via registerGameAnimation
 // ============================================================================
+
+import { registerGameAnimation } from './tempo.js';
 
 export function createRio(scene) {
     // ------------------------------------------------------------------
-    // CONFIGURAÇÃO (ajuste aqui)
+    // CONFIGURAÇÃO
     // ------------------------------------------------------------------
     const CFG = {
         centroX: 25,
@@ -26,7 +21,7 @@ export function createRio(scene) {
         yAgua: 0.05,        // água principal
         yBrilho: 0.07,      // camada de reflexos
         velocidadeFluxo: 0.45,  // unidades de mundo por segundo (correnteza suave)
-        sentidoFluxo: 1,        // +1 = para +Z | -1 = para -Z (inverta se quiser)
+        sentidoFluxo: 1,        // +1 = para +Z | -1 = para -Z
         ondas: {
             quantidade: 12,     // malhas reutilizadas, sem criar objetos a cada quadro
             duracaoMin: 2.4,    // segundos até desaparecer
@@ -45,7 +40,7 @@ export function createRio(scene) {
     const yPeixe = CFG.yBrilho;
     const metadeLargura = CFG.largura / 2;
 
-    // Random determinístico (a textura sai sempre igual)
+    // Random determinístico
     let semente = 1337;
     const rnd = () => {
         semente |= 0; semente = (semente + 0x6D2B79F5) | 0;
@@ -55,7 +50,7 @@ export function createRio(scene) {
     };
 
     // ------------------------------------------------------------------
-    // TEXTURAS PROCEDURAIS (tileáveis)
+    // TEXTURAS PROCEDURAIS
     // ------------------------------------------------------------------
     const criarTextura = (nome, tam, pintar, comAlpha) => {
         const tex = new BABYLON.DynamicTexture(nome, { width: tam, height: tam }, scene, true);
@@ -68,7 +63,6 @@ export function createRio(scene) {
         return tex;
     };
 
-    // Desenha 3x3 vezes deslocado para a textura emendar sem costura
     const comWrap = (ctx, tam, fn) => {
         for (const dx of [-tam, 0, tam]) {
             for (const dy of [-tam, 0, tam]) {
@@ -80,7 +74,7 @@ export function createRio(scene) {
         }
     };
 
-    // Base: azul com manchas alongadas claras/escuras (sentido do fluxo = vertical)
+    // Base: azul com manchas alongadas
     const texAgua = criarTextura("texRioBase", 512, (ctx, tam) => {
         ctx.fillStyle = "#1c93c8";
         ctx.fillRect(0, 0, tam, tam);
@@ -102,7 +96,7 @@ export function createRio(scene) {
         }
     }, false);
 
-    // Reflexos: filetes brancos ondulados e fininhos
+    // Reflexos: filetes brancos ondulados
     const texBrilho = criarTextura("texRioBrilho", 512, (ctx, tam) => {
         ctx.clearRect(0, 0, tam, tam);
         ctx.lineCap = "round";
@@ -178,7 +172,7 @@ export function createRio(scene) {
     matBrilho.alpha = 0.6;
 
     // ------------------------------------------------------------------
-    // MALHAS DO RIO (margem + água + reflexos, por trecho)
+    // MALHAS DO RIO
     // ------------------------------------------------------------------
     const escalarUV = (mesh, escU, escV) => {
         const uv = mesh.getVerticesData(BABYLON.VertexBuffer.UVKind);
@@ -186,14 +180,13 @@ export function createRio(scene) {
         mesh.updateVerticesData(BABYLON.VertexBuffer.UVKind, uv);
     };
 
-    const TAM_TEXEL = 5; // 1 repetição da textura = 5 unidades de mundo
+    const TAM_TEXEL = 5;
     const malhasRio = [];
 
     CFG.trechos.forEach((t, idx) => {
         const comp = t.zFim - t.zIni;
         const zc = (t.zIni + t.zFim) / 2;
 
-        // Margem: um pouco mais larga só no lado direito (o esquerdo encosta no asfalto da ETA)
         const margem = BABYLON.MeshBuilder.CreateGround("rioMargem" + idx,
             { width: CFG.largura + 0.7, height: comp }, scene);
         margem.position.set(CFG.centroX + 0.35, CFG.yMargem, zc);
@@ -220,7 +213,7 @@ export function createRio(scene) {
     });
 
     // ------------------------------------------------------------------
-    // PEQUENAS ONDAS 3D (cristas curvas acima da superfície)
+    // PEQUENAS ONDAS 3D
     // ------------------------------------------------------------------
     const matOnda = new BABYLON.StandardMaterial("matRioOnda", scene);
     matOnda.diffuseColor = new BABYLON.Color3(1, 1, 1);
@@ -230,8 +223,6 @@ export function createRio(scene) {
     matOnda.backFaceCulling = false;
     matOnda.alpha = 0.75;
 
-    // Perfil estático: a altura e o tamanho mudam por escala, sem recalcular
-    // vértices/normais a cada quadro. Todas as ondas compartilham a geometria.
     const posOnda = [], indicesOnda = [], coresOnda = [], normaisOnda = [];
     const segmentosX = 16, segmentosZ = 10;
     for (let iz = 0; iz <= segmentosZ; iz++) {
@@ -257,12 +248,12 @@ export function createRio(scene) {
     dadosOnda.positions = posOnda;
     dadosOnda.indices = indicesOnda;
     dadosOnda.normals = normaisOnda;
-    dadosOnda.colors = coresOnda; // bordas transparentes para se misturar com a água
+    dadosOnda.colors = coresOnda;
 
     const modeloOnda = new BABYLON.Mesh("rioOnda0", scene);
     dadosOnda.applyToMesh(modeloOnda);
     modeloOnda.material = matOnda;
-    modeloOnda.alphaIndex = 2; // desenhar depois da água/reflexos transparentes
+    modeloOnda.alphaIndex = 2;
     modeloOnda.hasVertexAlpha = true;
     modeloOnda.isPickable = false;
     modeloOnda.setEnabled(false);
@@ -277,11 +268,10 @@ export function createRio(scene) {
     const iniciarOnda = (onda) => {
         const cfg = CFG.ondas;
         const duracao = cfg.duracaoMin + Math.random() * (cfg.duracaoMax - cfg.duracaoMin);
-        const largura = 0.9 + Math.random() * 0.6; // meia largura: 1.8–3 unidades no total
+        const largura = 0.9 + Math.random() * 0.6;
         const profundidade = 0.4 + Math.random() * 0.3;
         const velocidade = CFG.velocidadeFluxo * CFG.sentidoFluxo * cfg.deriva;
         const deslocamento = velocidade * duracao;
-        // Inclui a curvatura, a rotação e todo o deslocamento durante a vida.
         const raio = Math.hypot(largura, profundidade * 1.2) + 0.15;
         const trechos = CFG.trechos.map(t => ({
             min: t.zIni + raio + Math.max(0, -deslocamento),
@@ -290,7 +280,6 @@ export function createRio(scene) {
         const comprimentoTotal = trechos.reduce((soma, t) => soma + t.max - t.min, 0);
         if (comprimentoTotal <= 0 || raio >= metadeLargura) return;
 
-        // Distribuição proporcional ao espaço disponível em cada trecho.
         let escolha = Math.random() * comprimentoTotal;
         let trecho = trechos[trechos.length - 1];
         for (const t of trechos) {
@@ -316,7 +305,7 @@ export function createRio(scene) {
     };
 
     // ------------------------------------------------------------------
-    // PARTÍCULAS AMBIENTE (brilhos e espuma nas margens)
+    // PARTÍCULAS AMBIENTE
     // ------------------------------------------------------------------
     const zIniPrincipal = CFG.trechos[1].zIni;
     const zFimPrincipal = CFG.trechos[1].zFim;
@@ -343,17 +332,15 @@ export function createRio(scene) {
         ps.minLifeTime = 3;
         ps.maxLifeTime = 6;
         ps.emitRate = taxa;
-        ps.updateSpeed = 1 / 60; // 1 unidade de tempo = 1 segundo real
+        ps.updateSpeed = 1 / 60;
         ps.blendMode = additive ? BABYLON.ParticleSystem.BLENDMODE_ONEONE
                                 : BABYLON.ParticleSystem.BLENDMODE_STANDARD;
         ps.start();
         return ps;
     };
 
-    // Brilhos de sol espalhados
     criarAmbiente("rioBrilhos", CFG.centroX, metadeLargura - 0.5, 400, 60, 0.12, 0.3,
         new BABYLON.Color4(0.7, 0.9, 1, 0.5), new BABYLON.Color4(1, 1, 1, 0.35), true);
-    // Espuma nas duas margens
     criarAmbiente("rioEspumaE", CFG.centroX - metadeLargura + 0.3, 0.3, 250, 25, 0.18, 0.4,
         new BABYLON.Color4(1, 1, 1, 0.55), new BABYLON.Color4(0.9, 0.97, 1, 0.4), false);
     criarAmbiente("rioEspumaD", CFG.centroX + metadeLargura - 0.3, 0.3, 250, 25, 0.18, 0.4,
@@ -385,7 +372,7 @@ export function createRio(scene) {
     respingo.start();
 
     // ------------------------------------------------------------------
-    // ONDULAÇÕES (anéis que crescem e somem)
+    // ONDULAÇÕES
     // ------------------------------------------------------------------
     const matAnel = new BABYLON.StandardMaterial("matRioAnel", scene);
     matAnel.diffuseTexture = texAnel;
@@ -478,7 +465,6 @@ export function createRio(scene) {
             peitoral.parent = raiz;
         }
 
-        // Cauda em pivô (balança de um lado para o outro)
         const pivoCauda = new BABYLON.TransformNode("peixePivoCauda" + i, scene);
         pivoCauda.parent = raiz;
         pivoCauda.position.z = -0.45;
@@ -515,7 +501,6 @@ export function createRio(scene) {
 
         const x = CFG.centroX + (Math.random() - 0.5) * (CFG.largura - 5);
         const z = CFG.zMinPeixe + Math.random() * (CFG.zMaxPeixe - CFG.zMinPeixe);
-        // Evita sair da margem: se o fim passar da borda, inverte a direção lateral
         const xFim = x + f.dirX * f.dist;
         if (Math.abs(xFim - CFG.centroX) > metadeLargura - 1) f.dirX = -f.dirX;
 
@@ -528,14 +513,13 @@ export function createRio(scene) {
     };
 
     // ------------------------------------------------------------------
-    // LOOP DE ANIMAÇÃO ÚNICO
+    // LOOP DE ANIMAÇÃO ÚNICO REGISTRADO NO SISTEMA DE PAUSE GLOBAL
     // ------------------------------------------------------------------
     let tempo = 0;
     let offBase = 0;
     let offBrilho = 0;
 
-    scene.registerBeforeRender(() => {
-        const dt = Math.min(scene.getEngine().getDeltaTime() / 1000, 0.05);
+    registerGameAnimation(scene, (dt) => {
         tempo += dt;
 
         // --- Fluxo da água (rolagem das texturas) ---
@@ -546,10 +530,9 @@ export function createRio(scene) {
         texAgua.uOffset = Math.sin(tempo * 0.35) * 0.03;
         texBrilho.vOffset = offBrilho;
         texBrilho.uOffset = -Math.sin(tempo * 0.5) * 0.05;
-        // Reflexos pulsando suavemente
         matBrilho.alpha = 0.5 + Math.sin(tempo * 1.3) * 0.12;
 
-        // --- Ondas 3D: surgem, crescem e diminuem até desaparecer ---
+        // --- Ondas 3D ---
         for (const onda of ondas) {
             if (!onda.ativa) {
                 onda.espera -= dt;
@@ -565,7 +548,7 @@ export function createRio(scene) {
                 continue;
             }
             const envelope = Math.sin(Math.PI * p);
-            const suave = envelope * envelope; // transição suave nos dois extremos
+            const suave = envelope * envelope;
             onda.mesh.scaling.set(
                 onda.largura * (0.45 + 0.55 * envelope),
                 onda.altura * suave,
@@ -599,13 +582,11 @@ export function createRio(scene) {
             const y = yPeixe - 0.05 + 4 * f.altura * t * (1 - t);
             f.raiz.position.set(x, y, z);
 
-            // Orientação segundo a velocidade
             const velH = f.dist / f.dur;
             const velY = (4 * f.altura * (1 - 2 * t)) / f.dur;
             f.raiz.rotation.y = Math.atan2(f.dirX, f.dirZ);
             f.raiz.rotation.x = -Math.atan2(velY, velH);
 
-            // Cauda batendo
             f.fase += dt * 24;
             f.pivoCauda.rotation.y = Math.sin(f.fase) * 0.55;
         }
@@ -626,5 +607,5 @@ export function createRio(scene) {
         }
     });
 
-    return malhasRio[1]; // malha de água do primeiro trecho (compatibilidade)
+    return malhasRio[1];
 }

@@ -1,3 +1,10 @@
+import { 
+    setVelocidadeTempo, 
+    setHorarioJogo, 
+    getVelocidadeAtual, 
+    getDataAtual 
+} from './tempo.js';
+
 let modoDesenvolvedorAtivo = false;
 let cliquesConstruir = 0;
 let containerCartesiano = null;
@@ -7,12 +14,12 @@ let observerCartesiano = null;
 let btnFerramentas = null;
 let menuFerramentas = null;
 let painelCores = null;
+let painelTempo = null;
 
 export function isDevModeActive() {
     return modoDesenvolvedorAtivo;
 }
 
-// Contabiliza os 10 cliques no botão "Construir" para revelar o modo desenvolvedor
 export function registrarCliqueConstruir() {
     if (!modoDesenvolvedorAtivo) {
         cliquesConstruir++;
@@ -29,7 +36,7 @@ export function registrarCliqueConstruir() {
 export function setupDevButton(scene, groundInterno, tamanhoGrid, getModoConstrucao) {
     if (document.getElementById("btnDesenvolvedor")) return;
 
-    // 1. Botão Inferior do Modo Desenvolvedor
+    // 1. Botão Inferior Esquerdo (Ativar Modo Dev)
     const btnDev = document.createElement("button");
     btnDev.id = "btnDesenvolvedor";
     btnDev.innerText = "Desenvolvedor";
@@ -49,7 +56,7 @@ export function setupDevButton(scene, groundInterno, tamanhoGrid, getModoConstru
     btnDev.style.zIndex = "100";
     document.body.appendChild(btnDev);
 
-    // Cria as interfaces do menu de ferramentas e painel de cores no canto direito
+    // Interfaces do Ferramentas e Paineis no Canto Inferior Direito
     criarInterfaceFerramentas(scene);
 
     btnDev.addEventListener("click", () => {
@@ -66,6 +73,7 @@ export function setupDevButton(scene, groundInterno, tamanhoGrid, getModoConstru
             if (btnFerramentas) btnFerramentas.style.display = "none";
             if (menuFerramentas) menuFerramentas.style.display = "none";
             if (painelCores) painelCores.style.display = "none";
+            if (painelTempo) painelTempo.style.display = "none";
 
             removerSistemaCartesianoHTML(scene);
         }
@@ -73,16 +81,16 @@ export function setupDevButton(scene, groundInterno, tamanhoGrid, getModoConstru
 }
 
 // ==========================================================
-// MENU DE FERRAMENTAS & PAINEL DE CORES EM TEMPO REAL
+// MENU DE FERRAMENTAS & PAINÉIS (CANTO INFERIOR DIREITO)
 // ==========================================================
 function criarInterfaceFerramentas(scene) {
-    // 1. Botão "Ferramentas" no Canto Superior Direito
+    // 1. Botão "Ferramentas" no CANTO INFERIOR DIREITO
     btnFerramentas = document.createElement("button");
     btnFerramentas.id = "btnDevFerramentas";
     btnFerramentas.innerHTML = "⚙️ Ferramentas";
     btnFerramentas.style.position = "absolute";
-    btnFerramentas.style.top = "20px";
-    btnFerramentas.style.right = "260px"; // Posicionado ao lado do HUD de estatísticas
+    btnFerramentas.style.bottom = "20px";
+    btnFerramentas.style.right = "20px";
     btnFerramentas.style.backgroundColor = "#0284c7";
     btnFerramentas.style.color = "#ffffff";
     btnFerramentas.style.border = "1px solid #38bdf8";
@@ -94,15 +102,15 @@ function criarInterfaceFerramentas(scene) {
     btnFerramentas.style.cursor = "pointer";
     btnFerramentas.style.boxShadow = "0 4px 8px rgba(0,0,0,0.4)";
     btnFerramentas.style.zIndex = "100";
-    btnFerramentas.style.display = "none"; // Exibido apenas em Modo Dev
+    btnFerramentas.style.display = "none";
     document.body.appendChild(btnFerramentas);
 
-    // 2. Submenu de Opções
+    // 2. Submenu de Opções (Sobe acima do botão Ferramentas)
     menuFerramentas = document.createElement("div");
     menuFerramentas.id = "menuDevFerramentas";
     menuFerramentas.style.position = "absolute";
-    menuFerramentas.style.top = "65px";
-    menuFerramentas.style.right = "260px";
+    menuFerramentas.style.bottom = "65px";
+    menuFerramentas.style.right = "20px";
     menuFerramentas.style.backgroundColor = "rgba(15, 23, 42, 0.95)";
     menuFerramentas.style.border = "1px solid #38bdf8";
     menuFerramentas.style.borderRadius = "8px";
@@ -111,7 +119,7 @@ function criarInterfaceFerramentas(scene) {
     menuFerramentas.style.flexDirection = "column";
     menuFerramentas.style.gap = "8px";
     menuFerramentas.style.zIndex = "100";
-    menuFerramentas.style.minWidth = "150px";
+    menuFerramentas.style.minWidth = "160px";
     document.body.appendChild(menuFerramentas);
 
     menuFerramentas.innerHTML = `
@@ -127,14 +135,27 @@ function criarInterfaceFerramentas(scene) {
             text-align: left;
             transition: background 0.2s;
         ">🎨 Cores do Ambiente</button>
+
+        <button id="btnOpcaoTempo" style="
+            background: #1e293b;
+            color: #fff;
+            border: 1px solid #334155;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 13px;
+            text-align: left;
+            transition: background 0.2s;
+        ">⏱️ Controle de Tempo</button>
     `;
 
     // 3. Painel de Edição de Cores
     painelCores = document.createElement("div");
     painelCores.id = "painelDevCores";
     painelCores.style.position = "absolute";
-    painelCores.style.top = "65px";
-    painelCores.style.right = "260px";
+    painelCores.style.bottom = "65px";
+    painelCores.style.right = "20px";
     painelCores.style.backgroundColor = "rgba(15, 23, 42, 0.98)";
     painelCores.style.border = "2px solid #38bdf8";
     painelCores.style.borderRadius = "10px";
@@ -147,7 +168,7 @@ function criarInterfaceFerramentas(scene) {
     painelCores.style.fontFamily = "Arial, sans-serif";
     painelCores.style.fontSize = "13px";
     painelCores.style.boxShadow = "0 8px 16px rgba(0,0,0,0.6)";
-    painelCores.style.minWidth = "210px";
+    painelCores.style.minWidth = "220px";
     document.body.appendChild(painelCores);
 
     painelCores.innerHTML = `
@@ -172,11 +193,6 @@ function criarInterfaceFerramentas(scene) {
         </div>
 
         <div style="display: flex; justify-content: space-between; align-items: center;">
-            <label for="colorCeu">Céu / Fundo:</label>
-            <input type="color" id="colorCeu" value="#87CFEB" style="cursor: pointer; border: none; background: none; width: 32px; height: 28px;">
-        </div>
-
-        <div style="display: flex; justify-content: space-between; align-items: center;">
             <label for="colorPortao">Portão Principal:</label>
             <input type="color" id="colorPortao" value="#262B33" style="cursor: pointer; border: none; background: none; width: 32px; height: 28px;">
         </div>
@@ -187,40 +203,138 @@ function criarInterfaceFerramentas(scene) {
         </div>
     `;
 
-    // Eventos dos Botões
+    // 4. Painel de Controle de Tempo Avançado
+    painelTempo = document.createElement("div");
+    painelTempo.id = "painelDevTempo";
+    painelTempo.style.position = "absolute";
+    painelTempo.style.bottom = "65px";
+    painelTempo.style.right = "20px";
+    painelTempo.style.backgroundColor = "rgba(15, 23, 42, 0.98)";
+    painelTempo.style.border = "2px solid #38bdf8";
+    painelTempo.style.borderRadius = "10px";
+    painelTempo.style.padding = "15px";
+    painelTempo.style.display = "none";
+    painelTempo.style.flexDirection = "column";
+    painelTempo.style.gap = "12px";
+    painelTempo.style.zIndex = "101";
+    painelTempo.style.color = "#ffffff";
+    painelTempo.style.fontFamily = "Arial, sans-serif";
+    painelTempo.style.fontSize = "13px";
+    painelTempo.style.boxShadow = "0 8px 16px rgba(0,0,0,0.6)";
+    painelTempo.style.minWidth = "240px";
+    document.body.appendChild(painelTempo);
+
+    painelTempo.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 6px; font-weight: bold; color: #38bdf8;">
+            <span>⏱️ Controle de Tempo Dev</span>
+            <button id="btnFecharTempo" style="background: none; border: none; color: #f87171; font-size: 16px; cursor: pointer; font-weight: bold;">✕</button>
+        </div>
+
+        <div>
+            <span style="color: #94a3b8; font-weight: bold;">Velocidade Personalizada:</span>
+            <div style="display: flex; gap: 6px; margin-top: 6px;">
+                <button class="btnVelDev" data-vel="0.5" style="flex: 1; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 4px; padding: 4px; cursor: pointer; font-weight: bold;">0.5x</button>
+                <button class="btnVelDev" data-vel="1" style="flex: 1; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 4px; padding: 4px; cursor: pointer; font-weight: bold;">1x</button>
+                <button class="btnVelDev" data-vel="5" style="flex: 1; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 4px; padding: 4px; cursor: pointer; font-weight: bold;">5x</button>
+                <button class="btnVelDev" data-vel="10" style="flex: 1; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 4px; padding: 4px; cursor: pointer; font-weight: bold;">10x</button>
+            </div>
+            <div style="display: flex; gap: 6px; margin-top: 6px; align-items: center;">
+                <input type="number" id="inputVelLivre" step="0.5" min="0.1" max="100" value="1" style="width: 70px; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 4px; padding: 4px 6px; outline: none;">
+                <button id="btnAplicarVel" style="flex: 1; background: #0284c7; color: #fff; border: none; border-radius: 4px; padding: 5px; cursor: pointer; font-weight: bold;">Aplicar Vel.</button>
+            </div>
+        </div>
+
+        <div style="border-top: 1px solid #334155; padding-top: 10px;">
+            <span style="color: #94a3b8; font-weight: bold;">Alterar Horário do Jogo:</span>
+            <div style="display: flex; gap: 6px; margin-top: 6px; align-items: center;">
+                <input type="time" id="inputHorarioDev" value="07:00" style="flex: 1; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 4px; padding: 4px 6px; outline: none; font-size: 14px;">
+                <button id="btnAplicarHora" style="background: #0284c7; color: #fff; border: none; border-radius: 4px; padding: 6px 10px; cursor: pointer; font-weight: bold;">Definir</button>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px;">
+                <button class="btnPresetHora" data-hora="06:00" style="background: #1e293b; color: #fde047; border: 1px solid #334155; border-radius: 4px; padding: 4px; cursor: pointer; font-weight: bold; font-size: 11px;">🌅 06:00 (Alvorada)</button>
+                <button class="btnPresetHora" data-hora="12:00" style="background: #1e293b; color: #fde047; border: 1px solid #334155; border-radius: 4px; padding: 4px; cursor: pointer; font-weight: bold; font-size: 11px;">☀️ 12:00 (Dia)</button>
+                <button class="btnPresetHora" data-hora="18:00" style="background: #1e293b; color: #c084fc; border: 1px solid #334155; border-radius: 4px; padding: 4px; cursor: pointer; font-weight: bold; font-size: 11px;">🌆 18:00 (Pôr do Sol)</button>
+                <button class="btnPresetHora" data-hora="00:00" style="background: #1e293b; color: #38bdf8; border: 1px solid #334155; border-radius: 4px; padding: 4px; cursor: pointer; font-weight: bold; font-size: 11px;">🌙 00:00 (Noite)</button>
+            </div>
+        </div>
+    `;
+
+    // Eventos do Menu de Ferramentas
     btnFerramentas.addEventListener("click", () => {
         const estaAberto = menuFerramentas.style.display === "flex";
         menuFerramentas.style.display = estaAberto ? "none" : "flex";
         painelCores.style.display = "none";
+        painelTempo.style.display = "none";
     });
 
     document.getElementById("btnOpcaoCores").addEventListener("click", () => {
         menuFerramentas.style.display = "none";
         painelCores.style.display = "flex";
+        painelTempo.style.display = "none";
         sincronizarCoresAtuais(scene);
+    });
+
+    document.getElementById("btnOpcaoTempo").addEventListener("click", () => {
+        menuFerramentas.style.display = "none";
+        painelCores.style.display = "none";
+        painelTempo.style.display = "flex";
+        
+        // Carrega os valores atuais no painel de tempo
+        document.getElementById("inputVelLivre").value = getVelocidadeAtual();
+        const d = getDataAtual();
+        document.getElementById("inputHorarioDev").value = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     });
 
     document.getElementById("btnFecharCores").addEventListener("click", () => {
         painelCores.style.display = "none";
     });
 
-    // Eventos de Alteração das Cores em Tempo Real
+    document.getElementById("btnFecharTempo").addEventListener("click", () => {
+        painelTempo.style.display = "none";
+    });
+
+    // --- EVENTOS DO PAINEL DE TEMPO ---
+    painelTempo.querySelectorAll(".btnVelDev").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const vel = parseFloat(btn.getAttribute("data-vel"));
+            setVelocidadeTempo(vel);
+            document.getElementById("inputVelLivre").value = vel;
+        });
+    });
+
+    document.getElementById("btnAplicarVel").addEventListener("click", () => {
+        const vel = parseFloat(document.getElementById("inputVelLivre").value);
+        if (!isNaN(vel) && vel > 0) {
+            setVelocidadeTempo(vel);
+        }
+    });
+
+    const aplicarHorarioPorExtenso = (strHora) => {
+        const [h, m] = strHora.split(":").map(Number);
+        if (!isNaN(h) && !isNaN(m)) {
+            setHorarioJogo(h, m);
+            document.getElementById("inputHorarioDev").value = strHora;
+        }
+    };
+
+    document.getElementById("btnAplicarHora").addEventListener("click", () => {
+        aplicarHorarioPorExtenso(document.getElementById("inputHorarioDev").value);
+    });
+
+    painelTempo.querySelectorAll(".btnPresetHora").forEach(btn => {
+        btn.addEventListener("click", () => {
+            aplicarHorarioPorExtenso(btn.getAttribute("data-hora"));
+        });
+    });
+
+    // --- EVENTOS DO PAINEL DE CORES ---
     conectarInputCor(scene, "colorAsfalto", "matAsfalto", "diffuseColor");
     conectarInputCor(scene, "colorMuro", "matMuro", "diffuseColor");
     conectarInputCor(scene, "colorGrama", "matGramaNormal", "diffuseColor");
     conectarInputCor(scene, "colorPortao", "matPortao", "diffuseColor");
     conectarInputCor(scene, "colorCorpoAdmin", "matCorpo", "diffuseColor");
-
-    // Alteração específica para a cor do céu (clearColor da Scene)
-    const inputCeu = document.getElementById("colorCeu");
-    if (inputCeu) {
-        inputCeu.addEventListener("input", (e) => {
-            scene.clearColor = BABYLON.Color4.FromHexString(e.target.value + "FF");
-        });
-    }
 }
 
-// Conecta o `<input type="color">` diretamente ao material correspondente do Babylon
 function conectarInputCor(scene, elementId, materialName, propertyName) {
     const input = document.getElementById(elementId);
     if (!input) return;
@@ -233,7 +347,6 @@ function conectarInputCor(scene, elementId, materialName, propertyName) {
     });
 }
 
-// Carrega as cores vigentes na cena para os seletores ao abrir o painel
 function sincronizarCoresAtuais(scene) {
     const sincronizar = (elementId, materialName) => {
         const mat = scene.getMaterialByName(materialName);
@@ -248,15 +361,10 @@ function sincronizarCoresAtuais(scene) {
     sincronizar("colorGrama", "matGramaNormal");
     sincronizar("colorPortao", "matPortao");
     sincronizar("colorCorpoAdmin", "matCorpo");
-
-    const inputCeu = document.getElementById("colorCeu");
-    if (inputCeu && scene.clearColor) {
-        inputCeu.value = scene.clearColor.toHexString().substring(0, 7);
-    }
 }
 
 // ==========================================================
-// SISTEMA CARTESIANO (MARCAÇÃO DE CÉLULAS HTML A-H / 1-6)
+// SISTEMA CARTESIANO (HTML A-H / 1-6)
 // ==========================================================
 export function criarSistemaCartesianoHTML(scene, groundInterno, tamanhoGrid) {
     removerSistemaCartesianoHTML(scene);
