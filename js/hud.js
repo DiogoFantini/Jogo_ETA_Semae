@@ -1,4 +1,6 @@
 import { ativarCamera } from './camera.js';
+import { formatarDinheiro, CUSTOS_ESTRUTURAS } from './condicoes.js';
+import { iniciarRelogio } from './tempo.js';
 
 export let itemSelecionado = null; 
 let onItemSelectCallback = null;
@@ -26,19 +28,23 @@ export function setupHUD() {
     hudContainer.style.display = "flex";
     hudContainer.style.flexDirection = "column";
     hudContainer.style.gap = "12px";
-    hudContainer.style.minWidth = "220px";
+    hudContainer.style.minWidth = "230px";
     hudContainer.style.border = "1px solid #334155";
 
     hudContainer.innerHTML = `
         <div id="hud-titulo" style="border-bottom: 2px solid #38bdf8; padding-bottom: 8px; margin-bottom: 4px; font-weight: bold; color: #fff; text-align: center; text-transform: uppercase; letter-spacing: 1px;">
             ETA Central
         </div>
-        <div>🏗️ Terreno utilizado: <span id="hud-terreno" style="font-weight: bold; float: right; color: #fde047;">1/4</span></div>
+        <div>💰 Dinheiro: <span id="hud-dinheiro" style="font-weight: bold; float: right; color: #4ade80;">R$ 450.000</span></div>
+        <div>🏗️ Terreno utilizado: <span id="hud-terreno" style="font-weight: bold; float: right; color: #fde047;">0/4</span></div>
         <div>💧 Água distribuída: <span id="hud-distribuida" style="font-weight: bold; float: right; color: #38bdf8;">0</span></div>
         <div>🧪 Água tratada: <span id="hud-tratada" style="font-weight: bold; float: right; color: #4ade80;">0%</span></div>
         <div style="margin-top: 5px; padding-top: 10px; border-top: 1px dashed #475569;">
             🎯 Meta de Abastecimento:<br>
             <span id="hud-meta" style="font-weight: bold; color: #f87171; display: block; margin-top: 5px;">Pendente</span>
+        </div>
+        <div style="margin-top: 2px; padding-top: 10px; border-top: 1px dashed #475569; text-align: center;">
+            🕒 <span id="hud-relogio" style="font-weight: bold; color: #38bdf8; font-size: 15px;">07:00 - 15/10/2026</span>
         </div>
     `;
 
@@ -48,9 +54,6 @@ export function setupHUD() {
     criarMenuConstrucaoHUD();
 }
 
-// ==========================================================
-// MENU DE CONSTRUÇÃO (HUD COM OPÇÕES DE ESTRUTURAS)
-// ==========================================================
 function criarMenuConstrucaoHUD() {
     const menu = document.createElement("div");
     menu.id = "menu-construcao-hud";
@@ -61,7 +64,7 @@ function criarMenuConstrucaoHUD() {
     menu.style.border = "2px solid #38bdf8";
     menu.style.borderRadius = "10px";
     menu.style.padding = "15px";
-    menu.style.width = "220px";
+    menu.style.width = "250px";
     menu.style.boxShadow = "0 8px 16px rgba(0,0,0,0.6)";
     menu.style.zIndex = "100";
     menu.style.display = "none";
@@ -85,36 +88,38 @@ function criarMenuConstrucaoHUD() {
 
         <button class="btn-opcao-construir" data-item="bomba_agua" style="
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 10px;
             padding: 10px 12px;
             background-color: #1e293b;
             color: #ffffff;
             border: 1px solid #334155;
             border-radius: 6px;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: bold;
             cursor: pointer;
             transition: all 0.2s;
         ">
-            <span style="font-size: 18px;">💧</span> Bomba d'água
+            <span>💧 Bomba d'água</span>
+            <span style="color: #4ade80;">${formatarDinheiro(CUSTOS_ESTRUTURAS.bomba_agua)}</span>
         </button>
 
         <button class="btn-opcao-construir" data-item="caixa_agua" style="
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 10px;
             padding: 10px 12px;
             background-color: #1e293b;
             color: #ffffff;
             border: 1px solid #334155;
             border-radius: 6px;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: bold;
             cursor: pointer;
             transition: all 0.2s;
         ">
-            <span style="font-size: 18px;">🚰</span> Caixa d'água
+            <span>🚰 Caixa d'água</span>
+            <span style="color: #4ade80;">${formatarDinheiro(CUSTOS_ESTRUTURAS.caixa_agua)}</span>
         </button>
     `;
 
@@ -260,8 +265,8 @@ function criarModalNomeETA() {
         atualizarNomeETA(nomeFinal);
         modalOverlay.remove();
 
-        // Ativa o controle de movimentação e rotação da câmera
         ativarCamera();
+        iniciarRelogio(); // Inicia a passagem do tempo
     };
 
     btn.addEventListener("click", confirmar);
@@ -280,6 +285,16 @@ export function atualizarNomeETA(nome) {
     if (typeof window.atualizarPlacaETA === "function") {
         window.atualizarPlacaETA(nome);
     }
+}
+
+export function atualizarRelogioHUD(textoDataHora) {
+    const el = document.getElementById("hud-relogio");
+    if (el) el.innerText = textoDataHora;
+}
+
+export function atualizarDinheiro(valor) {
+    const el = document.getElementById("hud-dinheiro");
+    if (el) el.innerText = formatarDinheiro(valor);
 }
 
 export function atualizarTerreno(usado, total) {

@@ -8,6 +8,17 @@ import {
     criarSistemaCartesianoHTML, 
     removerSistemaCartesianoHTML 
 } from './dev.js';
+import { 
+    podeConstruir, 
+    adicionarConstrucao, 
+    removerConstrucao, 
+    exibirPopUpLimite,
+    exibirPopUpSemDinheiro,
+    podePagar,
+    gastarDinheiro,
+    reembolsarDinheiro,
+    CUSTOS_ESTRUTURAS
+} from './condicoes.js';
 
 export function setupBuildSystem(scene, groundInterno) {
     let modoConstrucao = false;
@@ -16,7 +27,6 @@ export function setupBuildSystem(scene, groundInterno) {
 
     const matAsfaltoNormal = groundInterno.material;
 
-    // Configura o botão secreto do modo desenvolvedor
     setupDevButton(scene, groundInterno, tamanhoGrid, () => modoConstrucao);
 
     // ==========================================================
@@ -57,7 +67,6 @@ export function setupBuildSystem(scene, groundInterno) {
     const btnConstruir = document.getElementById("btnConstruir");
     const btnDesconstruir = document.getElementById("btnDesconstruir");
 
-    // Alterna o material do chão ao selecionar/desselecionar um item no HUD
     setOnItemSelectCallback((item) => {
         if (item) {
             groundInterno.material = matGridConstrucao;
@@ -150,7 +159,12 @@ export function setupBuildSystem(scene, groundInterno) {
 
                         const jaTemPredio = scene.meshes.some(m => m.name === "predio" && Math.abs(m.position.x - posX) < 0.1 && Math.abs(m.position.z - posZ) < 0.1);
 
-                        if (!isDevModeActive() && (!dentroDaAreaX || !dentroDaAreaZ || ehZonaRestritaA1H2 || ehZonaAdminF4H4 || ehZonaAdmin || jaTemPredio || restricaoBombaAgua)) {
+                        // Verificação de Limite de Terreno e Dinheiro
+                        const limiteAtingido = !podeConstruir();
+                        const custoAtual = CUSTOS_ESTRUTURAS[itemSelecionado] || 0;
+                        const semDinheiro = !podePagar(custoAtual);
+
+                        if (!isDevModeActive() && (!dentroDaAreaX || !dentroDaAreaZ || ehZonaRestritaA1H2 || ehZonaAdminF4H4 || ehZonaAdmin || jaTemPredio || restricaoBombaAgua || limiteAtingido || semDinheiro)) {
                             cursorConstrucao.material = matCursorInvalido;
                         } else {
                             cursorConstrucao.material = matCursorValido;
@@ -181,19 +195,47 @@ export function setupBuildSystem(scene, groundInterno) {
 
             case BABYLON.PointerEventTypes.POINTERDOWN:
                 if (pointerInfo.event.button === 0) { 
-                    if (!modoDesconstruir && cursorConstrucao.isVisible && cursorConstrucao.material === matCursorValido) {
-                        if (!isDevModeActive() && !itemSelecionado) return;
+                    if (!modoDesconstruir && cursorConstrucao.isVisible) {
+                        if (!isDevModeActive()) {
+                            if (!itemSelecionado) return;
+                            
+                            // Validação do Limite de Terrenos
+                            if (!podeConstruir()) {
+                                exibirPopUpLimite();
+                                return;
+                            }
 
-                        const posX = cursorConstrucao.position.x;
-                        const posZ = cursorConstrucao.position.z;
-
-                        if (itemSelecionado === "bomba_agua") {
-                            createBombaAgua(scene, posX, posZ);
-                        } else if (itemSelecionado === "caixa_agua") {
-                            createCaixaAgua(scene, posX, posZ);
+                            // Validação do Saldo Financeiro
+                            const custo = CUSTOS_ESTRUTURAS[itemSelecionado] || 0;
+                            if (!podePagar(custo)) {
+                                exibirPopUpSemDinheiro();
+                                return;
+                            }
                         }
 
-                        console.log(`Estrutura construída: ${itemSelecionado} em X: ${posX}, Z: ${posZ}`);
+                        if (cursorConstrucao.material === matCursorValido) {
+                            const posX = cursorConstrucao.position.x;
+                            const posZ = cursorConstrucao.position.z;
+                            const custo = CUSTOS_ESTRUTURAS[itemSelecionado] || 0;
+
+                            let novaEstrutura = null;
+
+                            if (itemSelecionado === "bomba_agua") {
+                                novaEstrutura = createBombaAgua(scene, posX, posZ);
+                            } else if (itemSelecionado === "caixa_agua") {
+                                novaEstrutura = createCaixaAgua(scene, posX, posZ);
+                            }
+
+                            if (novaEstrutura) {
+                                novaEstrutura.tipoItem = itemSelecionado; // Salva a identificação para o reembolso
+                                if (!isDevModeActive()) {
+                                    gastarDinheiro(custo);
+                                    adicionarConstrucao();
+                                }
+                            }
+
+                            console.log(`Estrutura construída: ${itemSelecionado} em X: ${posX}, Z: ${posZ}`);
+                        }
                     } 
                     else if (modoDesconstruir) {
                         const pickPredio = scene.pick(scene.pointerX, scene.pointerY, (mesh) => mesh.name === "predio");
@@ -203,10 +245,18 @@ export function setupBuildSystem(scene, groundInterno) {
                                 noRaiz = noRaiz.parent;
                             }
 
+                            const tipoItem = noRaiz.tipoItem;
+
                             if (noRaiz.physicsImpostor) {
                                 noRaiz.physicsImpostor.dispose();
                             }
                             noRaiz.dispose();
+                            
+                            removerConstrucao();
+                            if (tipoItem) {
+                                reembolsarDinheiro(tipoItem); // Devolve o valor ao jogador ao demolir
+                            }
+
                             cursorConstrucao.isVisible = false;
                         }
                     }

@@ -3,23 +3,20 @@ import { setupBuildSystem } from './builder.js';
 import { createBackground } from './background.js';
 import { createDecorations } from './decoracao.js';
 import { setupHUD } from './hud.js';
+import { setupIluminacao } from './iluminacao.js';
 
 export function createScene(engine, canvas) {
     const scene = new BABYLON.Scene(engine);
     
-    // Cor do céu / fundo da cena (Azul claro em Hex)
-    scene.clearColor = BABYLON.Color4.FromHexString("#87CFEBFF");
     scene.enablePhysics(new BABYLON.Vector3(0, -9.81, 0), new BABYLON.CannonJSPlugin());
 
-    const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
-    light.intensity = 0.8;
-
-    const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -2, -1), scene);
-    dirLight.position = new BABYLON.Vector3(20, 40, 20);
-    dirLight.intensity = 0.9;
+    // ==========================================================
+    // 1. ILUMINAÇÃO DINÂMICA (CICLO DIA E NOITE)
+    // ==========================================================
+    setupIluminacao(scene);
 
     // ==========================================================
-    // 1. CENTRO DE CONTROLE DA ETA (Centralizado em G3)
+    // 2. CENTRO DE CONTROLE DA ETA (Centralizado em G3)
     // ==========================================================
     const centroX = -2.5;
     const centroZ = -1.5;
@@ -70,12 +67,12 @@ export function createScene(engine, canvas) {
     predioVisual.name = "centroAdministrativoVisual";
 
     // ==========================================================
-    // 2. CÂMERA
+    // 3. CÂMERA
     // ==========================================================
     const camera = setupCamera(scene, canvas);
 
     // ==========================================================
-    // 3. MAPA PRINCIPAL (Grama Externa e Asfalto da ETA)
+    // 4. MAPA PRINCIPAL (Grama Externa e Asfalto da ETA)
     // ==========================================================
     const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 150, height: 150 }, scene);
     ground.position.y = 0.01; 
@@ -88,15 +85,15 @@ export function createScene(engine, canvas) {
     const asfalto = BABYLON.MeshBuilder.CreateGround("asfalto", { width: 25, height: 20 }, scene);
     asfalto.position = new BABYLON.Vector3(5, 0.02, 0); 
     const matAsfalto = new BABYLON.StandardMaterial("matAsfalto", scene);
-    matAsfalto.diffuseColor = BABYLON.Color3.FromHexString("#737880"); // Chão da estação
+    matAsfalto.diffuseColor = BABYLON.Color3.FromHexString("#737880"); 
     matAsfalto.specularColor = BABYLON.Color3.FromHexString("#1A1A1A"); 
     asfalto.material = matAsfalto;
 
     // ==========================================================
-    // 4. MURO DA ETA E PORTÃO
+    // 5. MURO DA ETA E PORTÃO
     // ==========================================================
     const matMuro = new BABYLON.StandardMaterial("matMuro", scene);
-    matMuro.diffuseColor = BABYLON.Color3.FromHexString("#c4c4cf"); // Muros do perímetro
+    matMuro.diffuseColor = BABYLON.Color3.FromHexString("#EBEBF2"); 
     matMuro.specularColor = BABYLON.Color3.FromHexString("#0D0D0D");
 
     const criarMuro = (cX, cZ, largura, profundidade) => {
@@ -126,13 +123,13 @@ export function createScene(engine, canvas) {
     portaoDir.physicsImpostor = new BABYLON.PhysicsImpostor(portaoDir, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 0 }, scene);
 
     // ==========================================================
-    // 5. MÓDULOS EXTERNOS (BACKGROUND E DECORAÇÃO)
+    // 6. MÓDULOS EXTERNOS (BACKGROUND E DECORAÇÃO)
     // ==========================================================
     createBackground(scene);
     createDecorations(scene);
 
     // ==========================================================
-    // 6. SISTEMAS DE GAMEPLAY
+    // 7. SISTEMAS DE GAMEPLAY
     // ==========================================================
     setupBuildSystem(scene, asfalto);
     setupHUD();
