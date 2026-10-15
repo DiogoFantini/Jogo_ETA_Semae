@@ -1,6 +1,11 @@
 import { ativarCamera } from './camera.js';
 import { formatarDinheiro, CUSTOS_ESTRUTURAS } from './condicoes.js';
-import { iniciarRelogio } from './tempo.js';
+import { 
+    iniciarRelogio, 
+    pausarRelogio, 
+    despausarRelogio, 
+    setVelocidadeTempo 
+} from './tempo.js';
 
 export let itemSelecionado = null; 
 let onItemSelectCallback = null;
@@ -10,12 +15,21 @@ export function setOnItemSelectCallback(callback) {
 }
 
 export function setupHUD() {
+    // Container lateral para alinhar o HUD e a barra de controle de tempo logo abaixo
+    const sidebarContainer = document.createElement("div");
+    sidebarContainer.id = "hud-sidebar-container";
+    sidebarContainer.style.position = "absolute";
+    sidebarContainer.style.top = "20px";
+    sidebarContainer.style.right = "20px";
+    sidebarContainer.style.display = "flex";
+    sidebarContainer.style.flexDirection = "column";
+    sidebarContainer.style.gap = "10px";
+    sidebarContainer.style.zIndex = "10";
+    sidebarContainer.style.pointerEvents = "none";
+
+    // 1. HUD Principal de Estatísticas
     const hudContainer = document.createElement("div");
     hudContainer.id = "game-stats-hud";
-    
-    hudContainer.style.position = "absolute";
-    hudContainer.style.top = "20px";
-    hudContainer.style.right = "20px";
     hudContainer.style.backgroundColor = "rgba(15, 20, 25, 0.85)";
     hudContainer.style.color = "#e0e0e0";
     hudContainer.style.padding = "15px 20px";
@@ -23,8 +37,7 @@ export function setupHUD() {
     hudContainer.style.fontFamily = "Arial, sans-serif";
     hudContainer.style.fontSize = "16px";
     hudContainer.style.boxShadow = "0 4px 8px rgba(0,0,0,0.5)";
-    hudContainer.style.pointerEvents = "none";
-    hudContainer.style.zIndex = "10";
+    hudContainer.style.pointerEvents = "auto";
     hudContainer.style.display = "flex";
     hudContainer.style.flexDirection = "column";
     hudContainer.style.gap = "12px";
@@ -48,10 +61,100 @@ export function setupHUD() {
         </div>
     `;
 
-    document.body.appendChild(hudContainer);
+    sidebarContainer.appendChild(hudContainer);
+
+    // 2. Barra de Controle de Tempo (Fora do HUD, posicionada logo abaixo)
+    const barraTempo = document.createElement("div");
+    barraTempo.id = "barra-controle-tempo";
+    barraTempo.style.backgroundColor = "rgba(15, 23, 42, 0.95)";
+    barraTempo.style.border = "1px solid #334155";
+    barraTempo.style.borderRadius = "8px";
+    barraTempo.style.padding = "8px 10px";
+    barraTempo.style.display = "flex";
+    barraTempo.style.justifyContent = "space-between";
+    barraTempo.style.alignItems = "center";
+    barraTempo.style.gap = "6px";
+    barraTempo.style.boxShadow = "0 4px 8px rgba(0,0,0,0.5)";
+    barraTempo.style.pointerEvents = "auto";
+
+    barraTempo.innerHTML = `
+        <button id="btnTempoPause" style="background: #1e293b; color: #f87171; border: 1px solid #334155; border-radius: 6px; padding: 6px 10px; font-weight: bold; cursor: pointer; transition: all 0.2s;" title="Pausar Tempo">⏸️</button>
+        <button id="btnTempoPlay" style="background: #0284c7; color: #fff; border: 1px solid #38bdf8; border-radius: 6px; padding: 6px 10px; font-weight: bold; cursor: pointer; transition: all 0.2s;" title="Retomar Tempo">▶️</button>
+        <button id="btnTempo1x" style="background: #0284c7; color: #fff; border: 1px solid #38bdf8; border-radius: 6px; padding: 6px 10px; font-weight: bold; font-size: 13px; cursor: pointer; transition: all 0.2s;" title="Velocidade 1x">1x</button>
+        <button id="btnTempo2x" style="background: #1e293b; color: #94a3b8; border: 1px solid #334155; border-radius: 6px; padding: 6px 10px; font-weight: bold; font-size: 13px; cursor: pointer; transition: all 0.2s;" title="Velocidade 2x">2x</button>
+        <button id="btnTempo3x" style="background: #1e293b; color: #94a3b8; border: 1px solid #334155; border-radius: 6px; padding: 6px 10px; font-weight: bold; font-size: 13px; cursor: pointer; transition: all 0.2s;" title="Velocidade 3x">3x</button>
+    `;
+
+    sidebarContainer.appendChild(barraTempo);
+    document.body.appendChild(sidebarContainer);
+
+    setupEventosControleTempo(barraTempo);
 
     criarModalNomeETA();
     criarMenuConstrucaoHUD();
+}
+
+function setupEventosControleTempo(container) {
+    const btnPause = container.querySelector("#btnTempoPause");
+    const btnPlay = container.querySelector("#btnTempoPlay");
+    const btn1x = container.querySelector("#btnTempo1x");
+    const btn2x = container.querySelector("#btnTempo2x");
+    const btn3x = container.querySelector("#btnTempo3x");
+
+    const botoesVelocidade = [btn1x, btn2x, btn3x];
+
+    function destacarVelocidade(btnAtivo) {
+        botoesVelocidade.forEach(btn => {
+            btn.style.backgroundColor = "#1e293b";
+            btn.style.color = "#94a3b8";
+            btn.style.borderColor = "#334155";
+        });
+        if (btnAtivo) {
+            btnAtivo.style.backgroundColor = "#0284c7";
+            btnAtivo.style.color = "#ffffff";
+            btnAtivo.style.borderColor = "#38bdf8";
+        }
+    }
+
+    btnPause.addEventListener("click", () => {
+        pausarRelogio();
+        btnPause.style.backgroundColor = "#ef4444";
+        btnPause.style.color = "#ffffff";
+        btnPause.style.borderColor = "#f87171";
+
+        btnPlay.style.backgroundColor = "#1e293b";
+        btnPlay.style.color = "#94a3b8";
+        btnPlay.style.borderColor = "#334155";
+    });
+
+    btnPlay.addEventListener("click", () => {
+        despausarRelogio();
+        btnPlay.style.backgroundColor = "#0284c7";
+        btnPlay.style.color = "#ffffff";
+        btnPlay.style.borderColor = "#38bdf8";
+
+        btnPause.style.backgroundColor = "#1e293b";
+        btnPause.style.color = "#f87171";
+        btnPause.style.borderColor = "#334155";
+    });
+
+    btn1x.addEventListener("click", () => {
+        setVelocidadeTempo(1);
+        destacarVelocidade(btn1x);
+        btnPlay.click();
+    });
+
+    btn2x.addEventListener("click", () => {
+        setVelocidadeTempo(2);
+        destacarVelocidade(btn2x);
+        btnPlay.click();
+    });
+
+    btn3x.addEventListener("click", () => {
+        setVelocidadeTempo(3);
+        destacarVelocidade(btn3x);
+        btnPlay.click();
+    });
 }
 
 function criarMenuConstrucaoHUD() {
@@ -266,7 +369,7 @@ function criarModalNomeETA() {
         modalOverlay.remove();
 
         ativarCamera();
-        iniciarRelogio(); // Inicia a passagem do tempo
+        iniciarRelogio();
     };
 
     btn.addEventListener("click", confirmar);
