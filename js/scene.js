@@ -7,7 +7,8 @@ import { setupHUD } from './hud.js';
 export function createScene(engine, canvas) {
     const scene = new BABYLON.Scene(engine);
     
-    scene.clearColor = new BABYLON.Color4(0.53, 0.81, 0.92, 1);
+    // Cor do céu / fundo da cena (Azul claro em Hex)
+    scene.clearColor = BABYLON.Color4.FromHexString("#87CFEBFF");
     scene.enablePhysics(new BABYLON.Vector3(0, -9.81, 0), new BABYLON.CannonJSPlugin());
 
     const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
@@ -33,22 +34,22 @@ export function createScene(engine, canvas) {
     const corpoPredio = BABYLON.MeshBuilder.CreateBox("corpoAdmin", { width: 5, height: 2.5, depth: 4 }, scene);
     corpoPredio.position = new BABYLON.Vector3(centroX, 1.25, centroZ); 
     const matCorpo = new BABYLON.StandardMaterial("matCorpo", scene);
-    matCorpo.diffuseColor = new BABYLON.Color3(0.9, 0.9, 0.93); 
+    matCorpo.diffuseColor = BABYLON.Color3.FromHexString("#E6E6ED"); 
     corpoPredio.material = matCorpo;
     pecasPredio.push(corpoPredio);
 
     const telhadoBorda = BABYLON.MeshBuilder.CreateBox("telhado", { width: 5.2, height: 0.2, depth: 4.2 }, scene);
     telhadoBorda.position = new BABYLON.Vector3(centroX, 2.6, centroZ); 
     const matTelhado = new BABYLON.StandardMaterial("matTelhado", scene);
-    matTelhado.diffuseColor = new BABYLON.Color3(0.2, 0.25, 0.3); 
+    matTelhado.diffuseColor = BABYLON.Color3.FromHexString("#33404C"); 
     telhadoBorda.material = matTelhado;
     pecasPredio.push(telhadoBorda);
 
     const portico = BABYLON.MeshBuilder.CreateBox("portico", { width: 2, height: 1.5, depth: 0.2 }, scene);
     portico.position = new BABYLON.Vector3(centroX, 0.75, centroZ - 2.05); 
     const matVidro = new BABYLON.StandardMaterial("matVidro", scene);
-    matVidro.diffuseColor = new BABYLON.Color3(0.3, 0.6, 0.9); 
-    matVidro.specularColor = new BABYLON.Color3(1, 1, 1);
+    matVidro.diffuseColor = BABYLON.Color3.FromHexString("#4C99E6"); 
+    matVidro.specularColor = BABYLON.Color3.FromHexString("#FFFFFF");
     portico.material = matVidro;
     pecasPredio.push(portico);
 
@@ -74,29 +75,29 @@ export function createScene(engine, canvas) {
     const camera = setupCamera(scene, canvas);
 
     // ==========================================================
-    // 3. MAPA PRINCIPAL (Ground e Asfalto Base)
+    // 3. MAPA PRINCIPAL (Grama Externa e Asfalto da ETA)
     // ==========================================================
     const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 150, height: 150 }, scene);
     ground.position.y = 0.01; 
     const matGramaNormal = new BABYLON.StandardMaterial("matGramaNormal", scene);
-    matGramaNormal.diffuseColor = new BABYLON.Color3(0.2, 0.6, 0.2);
-    matGramaNormal.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05);
+    matGramaNormal.diffuseColor = BABYLON.Color3.FromHexString("#339933");
+    matGramaNormal.specularColor = BABYLON.Color3.FromHexString("#0D0D0D");
     ground.material = matGramaNormal;
     ground.physicsImpostor = new BABYLON.PhysicsImpostor(ground, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 0, friction: 1 }, scene);
 
     const asfalto = BABYLON.MeshBuilder.CreateGround("asfalto", { width: 25, height: 20 }, scene);
     asfalto.position = new BABYLON.Vector3(5, 0.02, 0); 
     const matAsfalto = new BABYLON.StandardMaterial("matAsfalto", scene);
-    matAsfalto.diffuseColor = new BABYLON.Color3(0.45, 0.47, 0.5); 
-    matAsfalto.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1); 
+    matAsfalto.diffuseColor = BABYLON.Color3.FromHexString("#737880"); // Chão da estação
+    matAsfalto.specularColor = BABYLON.Color3.FromHexString("#1A1A1A"); 
     asfalto.material = matAsfalto;
 
     // ==========================================================
-    // 4. MURO BRANCO DA ETA E PORTÃO
+    // 4. MURO DA ETA E PORTÃO
     // ==========================================================
     const matMuro = new BABYLON.StandardMaterial("matMuro", scene);
-    matMuro.diffuseColor = new BABYLON.Color3(0.92, 0.92, 0.95); 
-    matMuro.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05);
+    matMuro.diffuseColor = BABYLON.Color3.FromHexString("#c4c4cf"); // Muros do perímetro
+    matMuro.specularColor = BABYLON.Color3.FromHexString("#0D0D0D");
 
     const criarMuro = (cX, cZ, largura, profundidade) => {
         const muro = BABYLON.MeshBuilder.CreateBox("muro", { width: largura, height: 2.2, depth: profundidade }, scene);
@@ -111,8 +112,8 @@ export function createScene(engine, canvas) {
     criarMuro(12.25, -10, 10.5, 0.25);
 
     const matPortao = new BABYLON.StandardMaterial("matPortao", scene);
-    matPortao.diffuseColor = new BABYLON.Color3(0.15, 0.17, 0.2);
-    matPortao.specularColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+    matPortao.diffuseColor = BABYLON.Color3.FromHexString("#262B33");
+    matPortao.specularColor = BABYLON.Color3.FromHexString("#808080");
 
     const portaoEsq = BABYLON.MeshBuilder.CreateBox("portaoEsq", { width: 2, height: 2.2, depth: 0.15 }, scene);
     portaoEsq.position = new BABYLON.Vector3(4, 1.1, -10); 

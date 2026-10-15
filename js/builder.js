@@ -1,16 +1,23 @@
 import { toggleMenuConstrucao, itemSelecionado, setOnItemSelectCallback } from './hud.js';
 import { createBombaAgua } from './bomba-agua.js';
+import { createCaixaAgua } from './caixa-agua.js';
+import { 
+    isDevModeActive, 
+    registrarCliqueConstruir, 
+    setupDevButton, 
+    criarSistemaCartesianoHTML, 
+    removerSistemaCartesianoHTML 
+} from './dev.js';
 
 export function setupBuildSystem(scene, groundInterno) {
     let modoConstrucao = false;
     let modoDesconstruir = false; 
     const tamanhoGrid = 3; 
 
-    let cliquesConstruir = 0;
-    let modoDesenvolvedorAtivo = false;
-    let containerCartesiano = null;
-
     const matAsfaltoNormal = groundInterno.material;
+
+    // Configura o botão secreto do modo desenvolvedor
+    setupDevButton(scene, groundInterno, tamanhoGrid, () => modoConstrucao);
 
     // ==========================================================
     // MATERIAL DA GRADE DE CONSTRUÇÃO
@@ -35,14 +42,14 @@ export function setupBuildSystem(scene, groundInterno) {
     // ==========================================================
     const matCursorValido = new BABYLON.StandardMaterial("matCursorValido", scene);
     matCursorValido.diffuseColor = new BABYLON.Color3(0, 1, 0.2);
-    matCursorValido.emissiveColor = new BABYLON.Color3(0, 1, 0.2); 
+    matCursorValido.emissiveColor = new BABYLON.Color3(0, 1, 0.2);
     matCursorValido.disableLighting = true; 
     matCursorValido.zOffset = -2;
     matCursorValido.alpha = 0.75;
 
     const matCursorInvalido = new BABYLON.StandardMaterial("matCursorInvalido", scene);
     matCursorInvalido.diffuseColor = new BABYLON.Color3(1, 0.1, 0.1);
-    matCursorInvalido.emissiveColor = new BABYLON.Color3(1, 0.1, 0.1); 
+    matCursorInvalido.emissiveColor = new BABYLON.Color3(1, 0.1, 0.1);
     matCursorInvalido.disableLighting = true; 
     matCursorInvalido.zOffset = -2;
     matCursorInvalido.alpha = 0.75;
@@ -60,137 +67,9 @@ export function setupBuildSystem(scene, groundInterno) {
         }
     });
 
-    // ==========================================================
-    // SISTEMA CARTESIANO (Eixos para identificação das células)
-    // ==========================================================
-    function criarSistemaCartesianoHTML() {
-        removerSistemaCartesianoHTML();
-
-        containerCartesiano = document.createElement("div");
-        containerCartesiano.id = "sistema-cartesiano-hud";
-        containerCartesiano.style.position = "absolute";
-        containerCartesiano.style.top = "0";
-        containerCartesiano.style.left = "0";
-        containerCartesiano.style.width = "100%";
-        containerCartesiano.style.height = "100%";
-        containerCartesiano.style.pointerEvents = "none";
-        containerCartesiano.style.zIndex = "5";
-        document.body.appendChild(containerCartesiano);
-
-        const letras = ["A", "B", "C", "D", "E", "F", "G", "H"]; 
-        const asfaltoPosX = groundInterno.position.x; 
-        const asfaltoPosZ = groundInterno.position.z; 
-
-        function atualizarPosicoes() {
-            if (!containerCartesiano) return;
-            containerCartesiano.innerHTML = "";
-
-            letras.forEach((letra, indexX) => {
-                const localX = 10.5 - (indexX * tamanhoGrid);
-                const posMundo = new BABYLON.Vector3(localX + asfaltoPosX, 0.1, -10.5 + asfaltoPosZ); 
-                const projecao = BABYLON.Vector3.Project(
-                    posMundo,
-                    BABYLON.Matrix.Identity(),
-                    scene.getTransformMatrix(),
-                    scene.activeCamera.viewport.toGlobal(scene.getEngine().getRenderWidth(), scene.getEngine().getRenderHeight())
-                );
-
-                if (projecao.z >= 0 && projecao.z <= 1) {
-                    const el = document.createElement("div");
-                    el.innerText = letra;
-                    el.style.position = "absolute";
-                    el.style.left = `${projecao.x}px`;
-                    el.style.top = `${projecao.y + 10}px`;
-                    el.style.transform = "translateX(-50%)";
-                    el.style.color = "#ef4444"; 
-                    el.style.fontFamily = "Arial, sans-serif";
-                    el.style.fontWeight = "bold";
-                    el.style.fontSize = "18px";
-                    el.style.textShadow = "1px 1px 2px #000";
-                    containerCartesiano.appendChild(el);
-                }
-            });
-
-            let numeroAtual = 1;
-            for (let localZ = -7.5; localZ <= 7.5; localZ += tamanhoGrid) {
-                const posMundo = new BABYLON.Vector3(12.5 + asfaltoPosX, 0.1, localZ + asfaltoPosZ); 
-                const projecao = BABYLON.Vector3.Project(
-                    posMundo,
-                    BABYLON.Matrix.Identity(),
-                    scene.getTransformMatrix(),
-                    scene.activeCamera.viewport.toGlobal(scene.getEngine().getRenderWidth(), scene.getEngine().getRenderHeight())
-                );
-
-                if (projecao.z >= 0 && projecao.z <= 1) {
-                    const el = document.createElement("div");
-                    el.innerText = numeroAtual;
-                    el.style.position = "absolute";
-                    el.style.left = `${projecao.x + 10}px`;
-                    el.style.top = `${projecao.y}px`;
-                    el.style.transform = "translateY(-50%)";
-                    el.style.color = "#ef4444"; 
-                    el.style.fontFamily = "Arial, sans-serif";
-                    el.style.fontWeight = "bold";
-                    el.style.fontSize = "18px";
-                    el.style.textShadow = "1px 1px 2px #000";
-                    containerCartesiano.appendChild(el);
-                }
-                numeroAtual++;
-            }
-        }
-
-        scene.registerBeforeRender(atualizarPosicoes);
-        containerCartesiano._observer = atualizarPosicoes;
-    }
-
-    function removerSistemaCartesianoHTML() {
-        if (containerCartesiano) {
-            containerCartesiano.remove();
-            containerCartesiano = null;
-        }
-    }
-
-    // ==========================================================
-    // BOTÃO SECRETO DE DESENVOLVEDOR
-    // ==========================================================
-    const btnDev = document.createElement("button");
-    btnDev.id = "btnDesenvolvedor";
-    btnDev.innerText = "Desenvolvedor";
-    btnDev.style.position = "absolute";
-    btnDev.style.bottom = "20px";
-    btnDev.style.left = "20px";
-    btnDev.style.padding = "10px 15px";
-    btnDev.style.backgroundColor = "#7c3aed";
-    btnDev.style.color = "#fff";
-    btnDev.style.border = "none";
-    btnDev.style.borderRadius = "6px";
-    btnDev.style.fontFamily = "Arial, sans-serif";
-    btnDev.style.fontWeight = "bold";
-    btnDev.style.cursor = "pointer";
-    btnDev.style.boxShadow = "0 4px 6px rgba(0,0,0,0.3)";
-    btnDev.style.display = "none";
-    btnDev.style.zIndex = "100";
-    document.body.appendChild(btnDev);
-
-    btnDev.addEventListener("click", () => {
-        modoDesenvolvedorAtivo = !modoDesenvolvedorAtivo;
-        if (modoDesenvolvedorAtivo) {
-            btnDev.style.background = "#db2777";
-            if (modoConstrucao) criarSistemaCartesianoHTML();
-        } else {
-            btnDev.style.background = "#7c3aed";
-            removerSistemaCartesianoHTML();
-        }
-    });
-
     if (btnConstruir && btnDesconstruir) {
         btnConstruir.addEventListener("click", () => {
-            if (!modoDesenvolvedorAtivo) {
-                cliquesConstruir++;
-                if (cliquesConstruir === 10) {
-                    btnDev.style.display = "block";
-                }
-            }
+            registrarCliqueConstruir();
 
             modoConstrucao = !modoConstrucao;
             modoDesconstruir = false;
@@ -202,8 +81,8 @@ export function setupBuildSystem(scene, groundInterno) {
                 btnConstruir.style.background = "#4CAF50";
                 btnDesconstruir.style.background = "rgba(0, 0, 0, 0.7)";
 
-                if (modoDesenvolvedorAtivo) {
-                    criarSistemaCartesianoHTML();
+                if (isDevModeActive()) {
+                    criarSistemaCartesianoHTML(scene, groundInterno, tamanhoGrid);
                 }
             } else {
                 cursorConstrucao.isVisible = false;
@@ -211,7 +90,7 @@ export function setupBuildSystem(scene, groundInterno) {
                 btnDesconstruir.style.display = "none";
                 btnConstruir.style.background = "rgba(0, 0, 0, 0.7)";
 
-                removerSistemaCartesianoHTML();
+                removerSistemaCartesianoHTML(scene);
             }
         });
 
@@ -232,7 +111,7 @@ export function setupBuildSystem(scene, groundInterno) {
         switch (pointerInfo.type) {
             case BABYLON.PointerEventTypes.POINTERMOVE:
                 if (!modoDesconstruir) {
-                    if (!modoDesenvolvedorAtivo && !itemSelecionado) {
+                    if (!isDevModeActive() && !itemSelecionado) {
                         cursorConstrucao.isVisible = false;
                         return;
                     }
@@ -271,7 +150,7 @@ export function setupBuildSystem(scene, groundInterno) {
 
                         const jaTemPredio = scene.meshes.some(m => m.name === "predio" && Math.abs(m.position.x - posX) < 0.1 && Math.abs(m.position.z - posZ) < 0.1);
 
-                        if (!modoDesenvolvedorAtivo && (!dentroDaAreaX || !dentroDaAreaZ || ehZonaRestritaA1H2 || ehZonaAdminF4H4 || ehZonaAdmin || jaTemPredio || restricaoBombaAgua)) {
+                        if (!isDevModeActive() && (!dentroDaAreaX || !dentroDaAreaZ || ehZonaRestritaA1H2 || ehZonaAdminF4H4 || ehZonaAdmin || jaTemPredio || restricaoBombaAgua)) {
                             cursorConstrucao.material = matCursorInvalido;
                         } else {
                             cursorConstrucao.material = matCursorValido;
@@ -283,9 +162,16 @@ export function setupBuildSystem(scene, groundInterno) {
                     const pickPredio = scene.pick(scene.pointerX, scene.pointerY, (mesh) => mesh.name === "predio");
                     
                     if (pickPredio.hit) {
+                        let noRaiz = pickPredio.pickedMesh;
+                        while (noRaiz.parent) {
+                            noRaiz = noRaiz.parent;
+                        }
+
+                        const posMundo = noRaiz.getAbsolutePosition();
+
                         cursorConstrucao.isVisible = true;
-                        cursorConstrucao.position.x = pickPredio.pickedMesh.position.x;
-                        cursorConstrucao.position.z = pickPredio.pickedMesh.position.z;
+                        cursorConstrucao.position.x = posMundo.x;
+                        cursorConstrucao.position.z = posMundo.z;
                         cursorConstrucao.material = matCursorInvalido; 
                     } else {
                         cursorConstrucao.isVisible = false;
@@ -296,16 +182,15 @@ export function setupBuildSystem(scene, groundInterno) {
             case BABYLON.PointerEventTypes.POINTERDOWN:
                 if (pointerInfo.event.button === 0) { 
                     if (!modoDesconstruir && cursorConstrucao.isVisible && cursorConstrucao.material === matCursorValido) {
-                        if (!modoDesenvolvedorAtivo && !itemSelecionado) return;
+                        if (!isDevModeActive() && !itemSelecionado) return;
 
                         const posX = cursorConstrucao.position.x;
                         const posZ = cursorConstrucao.position.z;
 
-                        // ==========================================================
-                        // CONSTRUÇÃO DA BOMBA D'ÁGUA
-                        // ==========================================================
                         if (itemSelecionado === "bomba_agua") {
                             createBombaAgua(scene, posX, posZ);
+                        } else if (itemSelecionado === "caixa_agua") {
+                            createCaixaAgua(scene, posX, posZ);
                         }
 
                         console.log(`Estrutura construída: ${itemSelecionado} em X: ${posX}, Z: ${posZ}`);
@@ -313,9 +198,10 @@ export function setupBuildSystem(scene, groundInterno) {
                     else if (modoDesconstruir) {
                         const pickPredio = scene.pick(scene.pointerX, scene.pointerY, (mesh) => mesh.name === "predio");
                         if (pickPredio.hit) {
-                            // Remove todo o grupo (TransformNode) pai do objeto clicado
-                            const meshAlvo = pickPredio.pickedMesh;
-                            const noRaiz = meshAlvo.parent || meshAlvo;
+                            let noRaiz = pickPredio.pickedMesh;
+                            while (noRaiz.parent) {
+                                noRaiz = noRaiz.parent;
+                            }
 
                             if (noRaiz.physicsImpostor) {
                                 noRaiz.physicsImpostor.dispose();
