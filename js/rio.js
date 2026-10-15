@@ -1,11 +1,10 @@
 // ============================================================================
-// rio.js — Rio animado (água com fluxo, partículas, peixes saltando, ondulações)
+// rio.js — Rio animado (correnteza suave, ondas 3D, partículas e peixes)
 //
 // Como funciona (resumo):
-//  - A água NÃO usa mais deformação de vértices. Era isso que fazia as ondas
-//    afundarem abaixo da grama (os "buracos verdes" da imagem). Agora o
-//    movimento vem de 2 camadas de textura procedural rolando em velocidades
-//    diferentes (efeito de profundidade), o que é leve e nunca fura o chão.
+//  - A base da água continua plana para não abrir "buracos verdes" na grama.
+//    Duas texturas rolando criam a correnteza; pequenas ondas 3D independentes
+//    ficam acima da superfície, crescem e diminuem até desaparecer.
 //  - O rio é dividido em 2 trechos para NÃO cobrir a avenida/ponte (z -68..-62).
 //  - Partículas: brilhos na superfície, espuma nas margens e respingos.
 //  - Peixes 3D com cauda animada saltam em arco, com respingo e ondulação.
@@ -26,8 +25,18 @@ export function createRio(scene) {
         yMargem: 0.03,      // leito/margem (acima do asfalto 0.02/0.025)
         yAgua: 0.05,        // água principal
         yBrilho: 0.07,      // camada de reflexos
-        velocidadeFluxo: 1.2,   // unidades de mundo por segundo
+        velocidadeFluxo: 0.45,  // unidades de mundo por segundo (correnteza suave)
         sentidoFluxo: 1,        // +1 = para +Z | -1 = para -Z (inverta se quiser)
+        ondas: {
+            quantidade: 12,     // malhas reutilizadas, sem criar objetos a cada quadro
+            duracaoMin: 2.4,    // segundos até desaparecer
+            duracaoMax: 4,
+            alturaMin: 0.10,
+            alturaMax: 0.22,
+            pausaMin: 0.8,
+            pausaMax: 2.4,
+            deriva: 0.35        // fração da velocidade da correnteza
+        },
         quantidadePeixes: 4,
         zMinPeixe: -55,
         zMaxPeixe: 60
@@ -195,6 +204,7 @@ export function createRio(scene) {
             { width: CFG.largura, height: comp }, scene);
         agua.position.set(CFG.centroX, CFG.yAgua, zc);
         agua.material = matAgua;
+        agua.alphaIndex = 0;
         agua.isPickable = false;
         escalarUV(agua, CFG.largura / TAM_TEXEL, comp / TAM_TEXEL);
 
@@ -202,11 +212,108 @@ export function createRio(scene) {
             { width: CFG.largura, height: comp }, scene);
         brilho.position.set(CFG.centroX, CFG.yBrilho, zc);
         brilho.material = matBrilho;
+        brilho.alphaIndex = 1;
         brilho.isPickable = false;
         escalarUV(brilho, CFG.largura / (TAM_TEXEL * 1.3), comp / (TAM_TEXEL * 1.3));
 
         malhasRio.push(margem, agua, brilho);
     });
+
+    // ------------------------------------------------------------------
+    // PEQUENAS ONDAS 3D (cristas curvas acima da superfície)
+    // ------------------------------------------------------------------
+    const matOnda = new BABYLON.StandardMaterial("matRioOnda", scene);
+    matOnda.diffuseColor = new BABYLON.Color3(1, 1, 1);
+    matOnda.emissiveColor = new BABYLON.Color3(0.04, 0.10, 0.14);
+    matOnda.specularColor = new BABYLON.Color3(0.65, 0.8, 0.9);
+    matOnda.specularPower = 80;
+    matOnda.backFaceCulling = false;
+    matOnda.alpha = 0.75;
+
+    // Perfil estático: a altura e o tamanho mudam por escala, sem recalcular
+    // vértices/normais a cada quadro. Todas as ondas compartilham a geometria.
+    const posOnda = [], indicesOnda = [], coresOnda = [], normaisOnda = [];
+    const segmentosX = 16, segmentosZ = 10;
+    for (let iz = 0; iz <= segmentosZ; iz++) {
+        const v = iz / segmentosZ;
+        const perfil = Math.pow(Math.sin(Math.PI * v), 3);
+        for (let ix = 0; ix <= segmentosX; ix++) {
+            const u = ix / segmentosX;
+            const x = u * 2 - 1;
+            const lateral = Math.pow(Math.sin(Math.PI * u), 2);
+            const altura = lateral * perfil;
+            const z = v * 2 - 1 + 0.2 * (1 - x * x);
+            posOnda.push(x, altura, z);
+            coresOnda.push(0.2 + altura * 0.5, 0.65 + altura * 0.27, 0.9 + altura * 0.1, altura);
+            if (ix < segmentosX && iz < segmentosZ) {
+                const a = iz * (segmentosX + 1) + ix;
+                const b = a + segmentosX + 1;
+                indicesOnda.push(a, a + 1, b, a + 1, b + 1, b);
+            }
+        }
+    }
+    BABYLON.VertexData.ComputeNormals(posOnda, indicesOnda, normaisOnda);
+    const dadosOnda = new BABYLON.VertexData();
+    dadosOnda.positions = posOnda;
+    dadosOnda.indices = indicesOnda;
+    dadosOnda.normals = normaisOnda;
+    dadosOnda.colors = coresOnda; // bordas transparentes para se misturar com a água
+
+    const modeloOnda = new BABYLON.Mesh("rioOnda0", scene);
+    dadosOnda.applyToMesh(modeloOnda);
+    modeloOnda.material = matOnda;
+    modeloOnda.alphaIndex = 2; // desenhar depois da água/reflexos transparentes
+    modeloOnda.hasVertexAlpha = true;
+    modeloOnda.isPickable = false;
+    modeloOnda.setEnabled(false);
+
+    const ondas = [];
+    for (let i = 0; i < CFG.ondas.quantidade; i++) {
+        const mesh = i === 0 ? modeloOnda : modeloOnda.clone("rioOnda" + i);
+        mesh.setEnabled(false);
+        ondas.push({ mesh, ativa: false, idade: 0, espera: i * 0.22 + Math.random() * 1.2 });
+    }
+
+    const iniciarOnda = (onda) => {
+        const cfg = CFG.ondas;
+        const duracao = cfg.duracaoMin + Math.random() * (cfg.duracaoMax - cfg.duracaoMin);
+        const largura = 0.9 + Math.random() * 0.6; // meia largura: 1.8–3 unidades no total
+        const profundidade = 0.4 + Math.random() * 0.3;
+        const velocidade = CFG.velocidadeFluxo * CFG.sentidoFluxo * cfg.deriva;
+        const deslocamento = velocidade * duracao;
+        // Inclui a curvatura, a rotação e todo o deslocamento durante a vida.
+        const raio = Math.hypot(largura, profundidade * 1.2) + 0.15;
+        const trechos = CFG.trechos.map(t => ({
+            min: t.zIni + raio + Math.max(0, -deslocamento),
+            max: t.zFim - raio - Math.max(0, deslocamento)
+        })).filter(t => t.max > t.min);
+        const comprimentoTotal = trechos.reduce((soma, t) => soma + t.max - t.min, 0);
+        if (comprimentoTotal <= 0 || raio >= metadeLargura) return;
+
+        // Distribuição proporcional ao espaço disponível em cada trecho.
+        let escolha = Math.random() * comprimentoTotal;
+        let trecho = trechos[trechos.length - 1];
+        for (const t of trechos) {
+            if (escolha < t.max - t.min) { trecho = t; break; }
+            escolha -= t.max - t.min;
+        }
+        onda.duracao = duracao;
+        onda.largura = largura;
+        onda.profundidade = profundidade;
+        onda.altura = cfg.alturaMin + Math.random() * (cfg.alturaMax - cfg.alturaMin);
+        onda.velocidade = velocidade;
+        onda.idade = 0;
+        onda.ativa = true;
+        onda.mesh.position.set(
+            CFG.centroX + (Math.random() - 0.5) * (CFG.largura - 2 * raio),
+            CFG.yBrilho + 0.004,
+            trecho.min + Math.random() * (trecho.max - trecho.min)
+        );
+        onda.mesh.rotation.y = (Math.random() - 0.5) * 0.5;
+        onda.mesh.scaling.set(largura * 0.45, 0.001, profundidade * 0.6);
+        onda.mesh.visibility = 0;
+        onda.mesh.setEnabled(true);
+    };
 
     // ------------------------------------------------------------------
     // PARTÍCULAS AMBIENTE (brilhos e espuma nas margens)
@@ -223,8 +330,8 @@ export function createRio(scene) {
         ps.emitter = new BABYLON.Vector3(x, yPeixe + 0.03, zCentro);
         ps.minEmitBox = new BABYLON.Vector3(-meioX, 0, -zMeio);
         ps.maxEmitBox = new BABYLON.Vector3(meioX, 0, zMeio);
-        ps.direction1 = new BABYLON.Vector3(-0.05, 0, sf * 0.9);
-        ps.direction2 = new BABYLON.Vector3(0.05, 0.02, sf * 1.3);
+        ps.direction1 = new BABYLON.Vector3(-0.05, 0, sf * CFG.velocidadeFluxo * 0.75);
+        ps.direction2 = new BABYLON.Vector3(0.05, 0.02, sf * CFG.velocidadeFluxo * 1.1);
         ps.minEmitPower = 0.8;
         ps.maxEmitPower = 1.2;
         ps.gravity = BABYLON.Vector3.Zero();
@@ -441,6 +548,32 @@ export function createRio(scene) {
         texBrilho.uOffset = -Math.sin(tempo * 0.5) * 0.05;
         // Reflexos pulsando suavemente
         matBrilho.alpha = 0.5 + Math.sin(tempo * 1.3) * 0.12;
+
+        // --- Ondas 3D: surgem, crescem e diminuem até desaparecer ---
+        for (const onda of ondas) {
+            if (!onda.ativa) {
+                onda.espera -= dt;
+                if (onda.espera <= 0) iniciarOnda(onda);
+                continue;
+            }
+            onda.idade += dt;
+            const p = onda.idade / onda.duracao;
+            if (p >= 1) {
+                onda.ativa = false;
+                onda.mesh.setEnabled(false);
+                onda.espera = CFG.ondas.pausaMin + Math.random() * (CFG.ondas.pausaMax - CFG.ondas.pausaMin);
+                continue;
+            }
+            const envelope = Math.sin(Math.PI * p);
+            const suave = envelope * envelope; // transição suave nos dois extremos
+            onda.mesh.scaling.set(
+                onda.largura * (0.45 + 0.55 * envelope),
+                onda.altura * suave,
+                onda.profundidade * (0.6 + 0.4 * envelope)
+            );
+            onda.mesh.visibility = 0.8 * suave;
+            onda.mesh.position.z += onda.velocidade * dt;
+        }
 
         // --- Peixes ---
         for (const f of peixes) {
