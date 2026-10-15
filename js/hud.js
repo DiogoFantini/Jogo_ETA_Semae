@@ -18,13 +18,15 @@ const INFO_ESTRUTURAS = {
     bomba_agua: {
         titulo: "💧 Bomba d'água (SEMAE)",
         descricao: CONFIG_BOMBA_AGUA.descricao,
+        rotuloEspecificacao: "Vazão de Captação:",
         vazao: CONFIG_BOMBA_AGUA.vazaoTextoCard,
         energia: CONFIG_BOMBA_AGUA.energia
     },
     caixa_agua: {
         titulo: "🚰 Caixa d'água Elevada",
         descricao: CONFIG_CAIXA_AGUA.descricao,
-        vazao: CONFIG_CAIXA_AGUA.reservaTexto,
+        rotuloEspecificacao: "Abastecimento (passivo):",
+        vazao: CONFIG_CAIXA_AGUA.mecanicaTextoCard,
         energia: CONFIG_CAIXA_AGUA.energia
     }
 };
@@ -304,7 +306,7 @@ function criarMenuConstrucaoHUD() {
                         ${info.descricao}
                     </div>
                     <div style="border-top: 1px dashed #334155; padding-top: 8px; font-size: 12px; display: flex; flex-direction: column; gap: 4px;">
-                        <div>🌊 <strong style="color: #94a3b8;">Vazão de Captação:</strong><br><span style="color: #38bdf8; font-weight: bold; display: block; margin-top: 2px;">${info.vazao}</span></div>
+                        <div>🌊 <strong style="color: #94a3b8;">${info.rotuloEspecificacao}</strong><br><span style="color: #38bdf8; font-weight: bold; display: block; margin-top: 2px;">${info.vazao}</span></div>
                         <div style="margin-top: 4px;">⚡ <strong style="color: #94a3b8;">Gasto de Energia:</strong> <span style="color: #f87171; font-weight: bold; float: right;">${info.energia}</span></div>
                     </div>
                 `;

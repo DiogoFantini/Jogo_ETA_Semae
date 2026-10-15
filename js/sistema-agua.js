@@ -1,9 +1,10 @@
-import { registerGameAnimation } from './tempo.js';
+import { registerGameAnimation, getDataAtual } from './tempo.js';
 import { atualizarAguaDistribuida } from './hud.js';
-import { CONFIG_BOMBA_AGUA } from './variaveis-importantes.js';
+import { CONFIG_BOMBA_AGUA, CONFIG_CAIXA_AGUA } from './variaveis-importantes.js';
 
 let totalAguaDistribuida = 0;
 let quantidadeBombas = 0;
+let quantidadeCaixas = 0;
 
 // Proporção do tempo in-game a 1x: 2.4 minutos in-game por segundo real (144s / 60)
 const MINUTOS_INGAME_POR_SEGUNDO_REAL = 2.4;
@@ -11,13 +12,19 @@ const MINUTOS_INGAME_POR_SEGUNDO_REAL = 2.4;
 export function adicionarEstruturaAgua(tipo) {
     if (tipo === "bomba_agua") {
         quantidadeBombas++;
+    } else if (tipo === "caixa_agua") {
+        quantidadeCaixas++;
     }
+    console.log(`[SISTEMA DE ÁGUA] Estrutura Adicionada: ${tipo} | Total Bombas: ${quantidadeBombas} | Total Caixas: ${quantidadeCaixas}`);
 }
 
 export function removerEstruturaAgua(tipo) {
     if (tipo === "bomba_agua" && quantidadeBombas > 0) {
         quantidadeBombas--;
+    } else if (tipo === "caixa_agua" && quantidadeCaixas > 0) {
+        quantidadeCaixas--;
     }
+    console.log(`[SISTEMA DE ÁGUA] Estrutura Removida: ${tipo} | Total Bombas: ${quantidadeBombas} | Total Caixas: ${quantidadeCaixas}`);
 }
 
 export function getAguaDistribuida() {
@@ -28,21 +35,37 @@ export function getQuantidadeBombas() {
     return quantidadeBombas;
 }
 
+export function getQuantidadeCaixas() {
+    return quantidadeCaixas;
+}
+
 export function iniciarSistemaAgua(scene) {
     registerGameAnimation(scene, (dt) => {
         if (quantidadeBombas === 0) return;
 
-        // Calcula os minutos passados no relógio do jogo
+        // 1. Minutos in-game transcorridos no frame
         const minutosInGamePassados = dt * MINUTOS_INGAME_POR_SEGUNDO_REAL;
         
-        // Puxa o valor da vazão por minuto configurado em variaveis-importantes.js (0.25 m³)
-        const aguaGerada = quantidadeBombas * CONFIG_BOMBA_AGUA.vazaoMinuto * minutosInGamePassados;
+        // 2. Captação base das bombas d'água
+        const aguaBaseBomba = quantidadeBombas * CONFIG_BOMBA_AGUA.vazaoMinuto * minutosInGamePassados;
 
+        // 3. Verifica se está no horário de pico (07:00 até 18:00)
+        const horaAtual = getDataAtual().getHours();
+        const ehHorarioPico = horaAtual >= 7 && horaAtual < 18;
+
+        // Multiplicador percentual: +25% por caixa d'água no horário de pico
+        let multiplicadorCaixa = 1.0;
+        if (ehHorarioPico && quantidadeCaixas > 0) {
+            multiplicadorCaixa += quantidadeCaixas * CONFIG_CAIXA_AGUA.bonusDistribuicaoDia;
+        }
+
+        // 4. Volume total de água gerada no frame
+        const aguaGerada = aguaBaseBomba * multiplicadorCaixa;
         totalAguaDistribuida += aguaGerada;
 
-        // Exibe o acumulado formatado com casas decimais se for menor que 10 m³, ou valor inteiro formatado
+        // 5. Formatação de exibição na HUD
         let textoFormatado;
-        if (totalAguaDistribuida < 10) {
+        if (totalAguaDistribuida < 100) {
             textoFormatado = `${totalAguaDistribuida.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} m³`;
         } else {
             textoFormatado = `${Math.floor(totalAguaDistribuida).toLocaleString('pt-BR')} m³`;

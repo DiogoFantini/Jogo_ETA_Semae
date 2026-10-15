@@ -30,27 +30,18 @@ export function setupBuildSystem(scene, groundInterno) {
 
     setupDevButton(scene, groundInterno, tamanhoGrid, () => modoConstrucao);
 
-    // ==========================================================
-    // MATERIAL DA GRADE DE CONSTRUÇÃO
-    // ==========================================================
     const matGridConstrucao = new BABYLON.GridMaterial("matGridConstrucao", scene);
     matGridConstrucao.mainColor = new BABYLON.Color3(0.1, 0.18, 0.28); 
     matGridConstrucao.lineColor = new BABYLON.Color3(0.2, 0.75, 1.0);  
     matGridConstrucao.gridRatio = tamanhoGrid;                                  
     matGridConstrucao.opacity = 0.98; 
 
-    // ==========================================================
-    // CURSOR DE DESTAQUE DE CONSTRUÇÃO
-    // ==========================================================
     const cursorConstrucao = BABYLON.MeshBuilder.CreateBox("cursor", { width: tamanhoGrid, height: 0.06, depth: tamanhoGrid }, scene);
     cursorConstrucao.position.y = 0.06; 
     cursorConstrucao.isVisible = false; 
     cursorConstrucao.isPickable = false;
     cursorConstrucao.renderingGroupId = 1;
 
-    // ==========================================================
-    // MATERIAIS VIBRANTES (SISTEMA DE LUZ DESATIVADO)
-    // ==========================================================
     const matCursorValido = new BABYLON.StandardMaterial("matCursorValido", scene);
     matCursorValido.diffuseColor = new BABYLON.Color3(0, 1, 0.2);
     matCursorValido.emissiveColor = new BABYLON.Color3(0, 1, 0.2);
@@ -154,7 +145,6 @@ export function setupBuildSystem(scene, groundInterno) {
                         const ehZonaAdminF4H4 = (Math.abs(snapLocalZ - 1.5) < 0.1 && snapLocalX <= -4.0 && snapLocalX >= -11.0);
                         const ehZonaAdmin = (snapLocalZ >= -2.0 && snapLocalZ <= 2.0 && snapLocalX <= -4.0 && snapLocalX >= -11.0);
 
-                        // Restrição da Bomba d'água (Apenas Coluna A / Beirada do Rio)
                         const ehBeiradaRio = (Math.abs(snapLocalX - 10.5) < 0.1); 
                         const restricaoBombaAgua = (itemSelecionado === "bomba_agua" && !ehBeiradaRio);
 
@@ -226,14 +216,16 @@ export function setupBuildSystem(scene, groundInterno) {
 
                             if (novaEstrutura) {
                                 novaEstrutura.tipoItem = itemSelecionado;
-                                if (!isDevModeActive()) {
-                                    gastarDinheiro(custo);
-                                    adicionarConstrucao();
-                                }
-                                adicionarEstruturaAgua(itemSelecionado);
                             }
 
-                            console.log(`Estrutura construída: ${itemSelecionado} em X: ${posX}, Z: ${posZ}`);
+                            if (!isDevModeActive()) {
+                                gastarDinheiro(custo);
+                                adicionarConstrucao();
+                            }
+
+                            adicionarEstruturaAgua(itemSelecionado);
+
+                            console.log(`[CONSTRUÇÃO] Estrutura registrada: ${itemSelecionado} em X: ${posX}, Z: ${posZ}`);
                         }
                     } 
                     else if (modoDesconstruir) {
