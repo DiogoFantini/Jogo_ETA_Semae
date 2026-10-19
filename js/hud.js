@@ -72,6 +72,7 @@ export function setupHUD(scene) {
         <div>🏗️ Terreno utilizado: <span id="hud-terreno" style="font-weight: bold; float: right; color: #fde047;">0/4</span></div>
         <div>💧 Água distribuída: <span id="hud-distribuida" style="font-weight: bold; float: right; color: #38bdf8;">0 m³</span></div>
         <div>🧪 Água tratada: <span id="hud-tratada" style="font-weight: bold; float: right; color: #4ade80;">0%</span></div>
+        <div>⚡ Consumo de kW/h: <span id="hud-energia" style="font-weight: bold; float: right; color: #f87171;">10 kW/h</span></div>
         <div style="margin-top: 5px; padding-top: 10px; border-top: 1px dashed #475569;">
             🎯 Meta de Abastecimento:<br>
             <span id="hud-meta" style="font-weight: bold; color: #f87171; display: block; margin-top: 5px;">Pendente</span>
@@ -487,6 +488,11 @@ export function atualizarAguaTratada(porcentagem) {
     const el = document.getElementById("hud-tratada");
     const valorTratado = Math.min(100, Math.max(0, Math.round(porcentagem))); 
     if (el) el.innerText = `${valorTratado}%`;
+}
+
+export function atualizarConsumoEnergia(valorKw) {
+    const el = document.getElementById("hud-energia");
+    if (el) el.innerText = `${valorKw} kW/h`;
 }
 
 export function atualizarMeta(statusTexto, completada = false) {

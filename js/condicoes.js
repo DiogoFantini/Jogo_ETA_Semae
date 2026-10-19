@@ -37,6 +37,11 @@ export function gastarDinheiro(custo) {
     return false;
 }
 
+export function adicionarDinheiro(valor) {
+    dinheiro += valor;
+    atualizarDinheiro(dinheiro);
+}
+
 export function reembolsarDinheiro(itemTipo) {
     const valorInvestido = CUSTOS_ESTRUTURAS[itemTipo] || 0;
     const reembolso = Math.round(valorInvestido * TAXA_REEMBOLSO); // Reembolso de 45% do valor investido

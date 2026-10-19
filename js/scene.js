@@ -5,6 +5,7 @@ import { createDecorations } from './decoracao.js';
 import { setupHUD } from './hud.js';
 import { setupIluminacao } from './iluminacao.js';
 import { iniciarSistemaAgua } from './sistema-agua.js';
+import { setupPainelContratos } from './contratos.js';
 
 export function createScene(engine, canvas) {
     const scene = new BABYLON.Scene(engine);
@@ -135,6 +136,7 @@ export function createScene(engine, canvas) {
     setupBuildSystem(scene, asfalto);
     setupHUD(scene);
     iniciarSistemaAgua(scene);
+    setupPainelContratos(scene);
 
     return scene;
 }

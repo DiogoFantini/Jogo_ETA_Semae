@@ -20,6 +20,7 @@ import {
     CUSTOS_ESTRUTURAS
 } from './condicoes.js';
 import { adicionarEstruturaAgua, removerEstruturaAgua } from './sistema-agua.js';
+import { adicionarConsumoEstrutura, removerConsumoEstrutura } from './sistema-energia.js';
 
 export function setupBuildSystem(scene, groundInterno) {
     let modoConstrucao = false;
@@ -224,6 +225,7 @@ export function setupBuildSystem(scene, groundInterno) {
                             }
 
                             adicionarEstruturaAgua(itemSelecionado);
+                            adicionarConsumoEstrutura(itemSelecionado);
 
                             console.log(`[CONSTRUÇÃO] Estrutura registrada: ${itemSelecionado} em X: ${posX}, Z: ${posZ}`);
                         }
@@ -247,6 +249,7 @@ export function setupBuildSystem(scene, groundInterno) {
                             if (tipoItem) {
                                 reembolsarDinheiro(tipoItem);
                                 removerEstruturaAgua(tipoItem);
+                                removerConsumoEstrutura(tipoItem);
                             }
 
                             cursorConstrucao.isVisible = false;
