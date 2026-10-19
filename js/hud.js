@@ -11,9 +11,6 @@ import { CONFIG_BOMBA_AGUA, CONFIG_CAIXA_AGUA } from './variaveis-importantes.js
 export let itemSelecionado = null; 
 let onItemSelectCallback = null;
 
-// ==========================================================
-// INFORMAÇÕES EDUCATIVAS E TÉCNICAS DAS ESTRUTURAS
-// ==========================================================
 const INFO_ESTRUTURAS = {
     bomba_agua: {
         titulo: "💧 Bomba d'água (SEMAE)",
@@ -70,12 +67,12 @@ export function setupHUD(scene) {
         </div>
         <div>💰 Dinheiro: <span id="hud-dinheiro" style="font-weight: bold; float: right; color: #4ade80;">R$ 450.000</span></div>
         <div>🏗️ Terreno utilizado: <span id="hud-terreno" style="font-weight: bold; float: right; color: #fde047;">0/4</span></div>
-        <div>💧 Água distribuída: <span id="hud-distribuida" style="font-weight: bold; float: right; color: #38bdf8;">0 m³</span></div>
+        <div>💧 Vazão atual: <span id="hud-distribuida" style="font-weight: bold; float: right; color: #38bdf8;">0 m³/h</span></div>
         <div>🧪 Água tratada: <span id="hud-tratada" style="font-weight: bold; float: right; color: #4ade80;">0%</span></div>
         <div>⚡ Consumo de kW/h: <span id="hud-energia" style="font-weight: bold; float: right; color: #f87171;">10 kW/h</span></div>
         <div style="margin-top: 5px; padding-top: 10px; border-top: 1px dashed #475569;">
             🎯 Meta de Abastecimento:<br>
-            <span id="hud-meta" style="font-weight: bold; color: #f87171; display: block; margin-top: 5px;">Pendente</span>
+            <span id="hud-meta" style="font-weight: bold; color: #f87171; display: block; margin-top: 5px;">Pegue um contrato na sede</span>
         </div>
         <div style="margin-top: 2px; padding-top: 10px; border-top: 1px dashed #475569; text-align: center;">
             🕒 <span id="hud-relogio" style="font-weight: bold; color: #38bdf8; font-size: 15px;">07:00 - 15/10/2026</span>
@@ -84,7 +81,7 @@ export function setupHUD(scene) {
 
     sidebarContainer.appendChild(hudContainer);
 
-    // 2. Barra de Controle de Tempo
+    // 2. Barra de Controle de Tempo (Ajustada para 1x, 5x, 10x)
     const barraTempo = document.createElement("div");
     barraTempo.id = "barra-controle-tempo";
     barraTempo.style.backgroundColor = "rgba(15, 23, 42, 0.95)";
@@ -101,9 +98,9 @@ export function setupHUD(scene) {
     barraTempo.innerHTML = `
         <button id="btnTempoPause" style="background: #1e293b; color: #f87171; border: 1px solid #334155; border-radius: 6px; padding: 6px 10px; font-weight: bold; cursor: pointer; transition: all 0.2s;" title="Pausar Tempo">⏸️</button>
         <button id="btnTempoPlay" style="background: #0284c7; color: #fff; border: 1px solid #38bdf8; border-radius: 6px; padding: 6px 10px; font-weight: bold; cursor: pointer; transition: all 0.2s;" title="Retomar Tempo">▶️</button>
-        <button id="btnTempo1x" style="background: #0284c7; color: #fff; border: 1px solid #38bdf8; border-radius: 6px; padding: 6px 10px; font-weight: bold; font-size: 13px; cursor: pointer; transition: all 0.2s;" title="Velocidade 1x">1x</button>
-        <button id="btnTempo2x" style="background: #1e293b; color: #94a3b8; border: 1px solid #334155; border-radius: 6px; padding: 6px 10px; font-weight: bold; font-size: 13px; cursor: pointer; transition: all 0.2s;" title="Velocidade 2x">2x</button>
-        <button id="btnTempo3x" style="background: #1e293b; color: #94a3b8; border: 1px solid #334155; border-radius: 6px; padding: 6px 10px; font-weight: bold; font-size: 13px; cursor: pointer; transition: all 0.2s;" title="Velocidade 3x">3x</button>
+        <button id="btnTempo1x" style="background: #0284c7; color: #fff; border: 1px solid #38bdf8; border-radius: 6px; padding: 6px 10px; font-weight: bold; font-size: 13px; cursor: pointer; transition: all 0.2s;" title="Velocidade Normal (1x)">1x</button>
+        <button id="btnTempo5x" style="background: #1e293b; color: #94a3b8; border: 1px solid #334155; border-radius: 6px; padding: 6px 10px; font-weight: bold; font-size: 13px; cursor: pointer; transition: all 0.2s;" title="Velocidade Rápida (5x)">5x</button>
+        <button id="btnTempo10x" style="background: #1e293b; color: #94a3b8; border: 1px solid #334155; border-radius: 6px; padding: 6px 10px; font-weight: bold; font-size: 13px; cursor: pointer; transition: all 0.2s;" title="Velocidade Ultra Rápida (10x)">10x</button>
     `;
 
     sidebarContainer.appendChild(barraTempo);
@@ -119,10 +116,10 @@ function setupEventosControleTempo(container) {
     const btnPause = container.querySelector("#btnTempoPause");
     const btnPlay = container.querySelector("#btnTempoPlay");
     const btn1x = container.querySelector("#btnTempo1x");
-    const btn2x = container.querySelector("#btnTempo2x");
-    const btn3x = container.querySelector("#btnTempo3x");
+    const btn5x = container.querySelector("#btnTempo5x");
+    const btn10x = container.querySelector("#btnTempo10x");
 
-    const botoesVelocidade = [btn1x, btn2x, btn3x];
+    const botoesVelocidade = [btn1x, btn5x, btn10x];
 
     function destacarVelocidade(btnAtivo) {
         botoesVelocidade.forEach(btn => {
@@ -165,22 +162,19 @@ function setupEventosControleTempo(container) {
         btnPlay.click();
     });
 
-    btn2x.addEventListener("click", () => {
-        setVelocidadeTempo(2);
-        destacarVelocidade(btn2x);
+    btn5x.addEventListener("click", () => {
+        setVelocidadeTempo(5);
+        destacarVelocidade(btn5x);
         btnPlay.click();
     });
 
-    btn3x.addEventListener("click", () => {
-        setVelocidadeTempo(3);
-        destacarVelocidade(btn3x);
+    btn10x.addEventListener("click", () => {
+        setVelocidadeTempo(10);
+        destacarVelocidade(btn10x);
         btnPlay.click();
     });
 }
 
-// ==========================================================
-// MENU DE CONSTRUÇÃO E CARD EXPLICATIVO (TOOLTIP)
-// ==========================================================
 function criarMenuConstrucaoHUD() {
     const menu = document.createElement("div");
     menu.id = "menu-construcao-hud";

@@ -20,7 +20,7 @@ export function createRio(scene) {
         yMargem: 0.03,      // leito/margem (acima do asfalto 0.02/0.025)
         yAgua: 0.05,        // água principal
         yBrilho: 0.07,      // camada de reflexos
-        velocidadeFluxo: 0.45,  // unidades de mundo por segundo (correnteza suave)
+        velocidadeFluxo: 0.05,  // unidades de mundo por segundo (correnteza suave)
         sentidoFluxo: 1,        // +1 = para +Z | -1 = para -Z
         ondas: {
             quantidade: 12,     // malhas reutilizadas, sem criar objetos a cada quadro
