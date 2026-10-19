@@ -7,6 +7,8 @@ import { setupIluminacao } from './iluminacao.js';
 import { iniciarSistemaAgua } from './sistema-agua.js';
 import { setupPainelContratos } from './contratos.js';
 import { setupSistemaJornal } from './jornal.js';
+import { setupSistemaClima } from './clima.js';
+import { setupSistemaRelatorio } from './relatorio.js';
 
 export function createScene(engine, canvas) {
     const scene = new BABYLON.Scene(engine);
@@ -139,6 +141,8 @@ export function createScene(engine, canvas) {
     iniciarSistemaAgua(scene);
     setupPainelContratos(scene);
     setupSistemaJornal(scene);
+    setupSistemaClima(scene);
+    setupSistemaRelatorio(scene);
 
     return scene;
 }

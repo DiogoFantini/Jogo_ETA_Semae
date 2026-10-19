@@ -4,6 +4,7 @@ import {
     getVelocidadeAtual, 
     getDataAtual 
 } from './tempo.js';
+import { setProximoClima, EVENTOS_CLIMATICOS } from './clima.js';
 
 let modoDesenvolvedorAtivo = false;
 let cliquesConstruir = 0;
@@ -15,6 +16,7 @@ let btnFerramentas = null;
 let menuFerramentas = null;
 let painelCores = null;
 let painelTempo = null;
+let painelClima = null;
 
 export function isDevModeActive() {
     return modoDesenvolvedorAtivo;
@@ -74,6 +76,7 @@ export function setupDevButton(scene, groundInterno, tamanhoGrid, getModoConstru
             if (menuFerramentas) menuFerramentas.style.display = "none";
             if (painelCores) painelCores.style.display = "none";
             if (painelTempo) painelTempo.style.display = "none";
+            if (painelClima) painelClima.style.display = "none";
 
             removerSistemaCartesianoHTML(scene);
         }
@@ -105,7 +108,7 @@ function criarInterfaceFerramentas(scene) {
     btnFerramentas.style.display = "none";
     document.body.appendChild(btnFerramentas);
 
-    // 2. Submenu de Opções (Sobe acima do botão Ferramentas)
+    // 2. Submenu de Opções
     menuFerramentas = document.createElement("div");
     menuFerramentas.id = "menuDevFerramentas";
     menuFerramentas.style.position = "absolute";
@@ -119,7 +122,7 @@ function criarInterfaceFerramentas(scene) {
     menuFerramentas.style.flexDirection = "column";
     menuFerramentas.style.gap = "8px";
     menuFerramentas.style.zIndex = "100";
-    menuFerramentas.style.minWidth = "160px";
+    menuFerramentas.style.minWidth = "180px";
     document.body.appendChild(menuFerramentas);
 
     menuFerramentas.innerHTML = `
@@ -148,6 +151,19 @@ function criarInterfaceFerramentas(scene) {
             text-align: left;
             transition: background 0.2s;
         ">⏱️ Controle de Tempo</button>
+
+        <button id="btnOpcaoClima" style="
+            background: #1e293b;
+            color: #fff;
+            border: 1px solid #334155;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 13px;
+            text-align: left;
+            transition: background 0.2s;
+        ">🌤️ Clima da Próx. Semana</button>
     `;
 
     // 3. Painel de Edição de Cores
@@ -203,7 +219,7 @@ function criarInterfaceFerramentas(scene) {
         </div>
     `;
 
-    // 4. Painel de Controle de Tempo Avançado
+    // 4. Painel de Controle de Tempo
     painelTempo = document.createElement("div");
     painelTempo.id = "painelDevTempo";
     painelTempo.style.position = "absolute";
@@ -259,18 +275,67 @@ function criarInterfaceFerramentas(scene) {
         </div>
     `;
 
+    // 5. Painel de Seleção de Clima (Próxima Semana)
+    painelClima = document.createElement("div");
+    painelClima.id = "painelDevClima";
+    painelClima.style.position = "absolute";
+    painelClima.style.bottom = "65px";
+    painelClima.style.right = "20px";
+    painelClima.style.backgroundColor = "rgba(15, 23, 42, 0.98)";
+    painelClima.style.border = "2px solid #38bdf8";
+    painelClima.style.borderRadius = "10px";
+    painelClima.style.padding = "15px";
+    painelClima.style.display = "none";
+    painelClima.style.flexDirection = "column";
+    painelClima.style.gap = "12px";
+    painelClima.style.zIndex = "101";
+    painelClima.style.color = "#ffffff";
+    painelClima.style.fontFamily = "Arial, sans-serif";
+    painelClima.style.fontSize = "13px";
+    painelClima.style.boxShadow = "0 8px 16px rgba(0,0,0,0.6)";
+    painelClima.style.minWidth = "260px";
+    document.body.appendChild(painelClima);
+
+    painelClima.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 6px; font-weight: bold; color: #38bdf8;">
+            <span>🌤️ Selecionar Clima da Próx. Semana</span>
+            <button id="btnFecharClima" style="background: none; border: none; color: #f87171; font-size: 16px; cursor: pointer; font-weight: bold;">✕</button>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+            <button class="btnClimaDev" data-clima="normal" style="background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 6px; padding: 8px; cursor: pointer; font-weight: bold; text-align: left;">
+                🌤️ Normal & Ameno
+            </button>
+            <button class="btnClimaDev" data-clima="onda_calor" style="background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 6px; padding: 8px; cursor: pointer; font-weight: bold; text-align: left;">
+                🔥 Onda de Calor (+25% Demanda)
+            </button>
+            <button class="btnClimaDev" data-clima="chuva_forte" style="background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 6px; padding: 8px; cursor: pointer; font-weight: bold; text-align: left;">
+                🌧️ Chuva Forte (Alta Turbidez)
+            </button>
+            <button class="btnClimaDev" data-clima="seca_severa" style="background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 6px; padding: 8px; cursor: pointer; font-weight: bold; text-align: left;">
+                🌵 Seca Severa (-30% Vazão)
+            </button>
+        </div>
+
+        <div id="statusClimaAgendado" style="font-size: 11px; color: #38bdf8; text-align: center; margin-top: 4px; font-style: italic;">
+            Clima agendado: Aleatório
+        </div>
+    `;
+
     // Eventos do Menu de Ferramentas
     btnFerramentas.addEventListener("click", () => {
         const estaAberto = menuFerramentas.style.display === "flex";
         menuFerramentas.style.display = estaAberto ? "none" : "flex";
         painelCores.style.display = "none";
         painelTempo.style.display = "none";
+        painelClima.style.display = "none";
     });
 
     document.getElementById("btnOpcaoCores").addEventListener("click", () => {
         menuFerramentas.style.display = "none";
         painelCores.style.display = "flex";
         painelTempo.style.display = "none";
+        painelClima.style.display = "none";
         sincronizarCoresAtuais(scene);
     });
 
@@ -278,11 +343,18 @@ function criarInterfaceFerramentas(scene) {
         menuFerramentas.style.display = "none";
         painelCores.style.display = "none";
         painelTempo.style.display = "flex";
+        painelClima.style.display = "none";
         
-        // Carrega os valores atuais no painel de tempo
         document.getElementById("inputVelLivre").value = getVelocidadeAtual();
         const d = getDataAtual();
         document.getElementById("inputHorarioDev").value = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    });
+
+    document.getElementById("btnOpcaoClima").addEventListener("click", () => {
+        menuFerramentas.style.display = "none";
+        painelCores.style.display = "none";
+        painelTempo.style.display = "none";
+        painelClima.style.display = "flex";
     });
 
     document.getElementById("btnFecharCores").addEventListener("click", () => {
@@ -291,6 +363,34 @@ function criarInterfaceFerramentas(scene) {
 
     document.getElementById("btnFecharTempo").addEventListener("click", () => {
         painelTempo.style.display = "none";
+    });
+
+    document.getElementById("btnFecharClima").addEventListener("click", () => {
+        painelClima.style.display = "none";
+    });
+
+    // --- EVENTOS DO PAINEL DE CLIMA ---
+    const botoesClima = painelClima.querySelectorAll(".btnClimaDev");
+    botoesClima.forEach(btn => {
+        btn.addEventListener("click", () => {
+            const idClima = btn.getAttribute("data-clima");
+            
+            // Registra o clima agendado em clima.js
+            setProximoClima(idClima, scene);
+
+            // Destaque visual do botão selecionado
+            botoesClima.forEach(b => {
+                b.style.backgroundColor = "#1e293b";
+                b.style.borderColor = "#334155";
+            });
+            btn.style.backgroundColor = "#0284c7";
+            btn.style.borderColor = "#38bdf8";
+
+            const status = document.getElementById("statusClimaAgendado");
+            if (status && EVENTOS_CLIMATICOS[idClima]) {
+                status.innerText = `Agendado p/ próxima semana: ${EVENTOS_CLIMATICOS[idClima].nome}`;
+            }
+        });
     });
 
     // --- EVENTOS DO PAINEL DE TEMPO ---

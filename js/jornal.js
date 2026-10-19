@@ -1,36 +1,19 @@
 import { registerGameAnimation, getDataAtual } from './tempo.js';
 import { getVazaoAtualHora, getQuantidadeBombas } from './sistema-agua.js';
 import { getConsumoTotalEnergia } from './sistema-energia.js';
+import { getEventoSorteadoSemana } from './clima.js';
 
-let temJornalNovo = true; // Começa com a edição inaugural da semana 1
+let temJornalNovo = true;
 let ultimoSemanaRegistrada = -1;
-let primeiraEdicaoVista = false; // Controle para a notícia inaugural
-
-// Previsões do tempo possíveis para a semana
-const CLIMAS_POSSIVEIS = [
-    { nome: "Ensolarado & Seco", icone: "☀️", efeito: "Consumo de água normal", detalhe: "Dias quentes e secos previstos. Estabilidade no consumo." },
-    { nome: "Onda de Calor Repentina", icone: "🔥", efeito: "Demanda de água +25%", detalhe: "Temperaturas altas farão a população consumir mais água. Fique atento às metas!" },
-    { nome: "Chuva Forte & Temporal", icone: "🌧️", efeito: "Turbidez do rio elevada", detalhe: "A chuva forte trará mais areia e sujeira ao leito do rio." },
-    { nome: "Clima Ameno & Nublado", icone: "🌤️", efeito: "Operação estável", detalhe: "Semana tranquila sem sobressaltos operacionais." }
-];
-
-let climaAtualSemana = CLIMAS_POSSIVEIS[0];
-
-export function getClimaSemanaAtual() {
-    return climaAtualSemana;
-}
+let primeiraEdicaoVista = false;
 
 export function setupSistemaJornal(scene) {
-    // ------------------------------------------------------------------
-    // 1. ESTRUTURA 3D DA CAIXA DE JORNAL (DENTRO DA ETA, AO LADO DO PORTÃO)
-    // ------------------------------------------------------------------
     const posX = 2.2;
-    const posZ = -8.5; // Logo ao lado do portão (Z: -10), dentro da ETA
+    const posZ = -8.5;
 
     const grupoJornal = new BABYLON.TransformNode("grupoCaixaJornal", scene);
     grupoJornal.position.set(posX, 0, posZ);
 
-    // Pedestal
     const matPedestal = new BABYLON.StandardMaterial("matPedestalJornal", scene);
     matPedestal.diffuseColor = BABYLON.Color3.FromHexString("#334155");
     
@@ -39,7 +22,6 @@ export function setupSistemaJornal(scene) {
     pedestal.material = matPedestal;
     pedestal.parent = grupoJornal;
 
-    // Caixa de metal
     const matCaixa = new BABYLON.StandardMaterial("matCaixaJornal", scene);
     matCaixa.diffuseColor = BABYLON.Color3.FromHexString("#0284c7");
     
@@ -48,7 +30,6 @@ export function setupSistemaJornal(scene) {
     caixa.material = matCaixa;
     caixa.parent = grupoJornal;
 
-    // Vidro transparente frontal
     const matVidro = new BABYLON.StandardMaterial("matVidroJornal", scene);
     matVidro.diffuseColor = BABYLON.Color3.FromHexString("#cbd5e1");
     matVidro.alpha = 0.5;
@@ -59,16 +40,12 @@ export function setupSistemaJornal(scene) {
     vidro.material = matVidro;
     vidro.parent = grupoJornal;
 
-    // Hitbox invisível para facilitar o clique
     const hitbox = BABYLON.MeshBuilder.CreateBox("hitboxJornal", { width: 1.0, height: 1.8, depth: 1.0 }, scene);
     hitbox.position.y = 0.9;
     hitbox.visibility = 0;
     hitbox.isPickable = true;
     hitbox.parent = grupoJornal;
 
-    // ------------------------------------------------------------------
-    // 2. ÍCONE DE EXCLAMAÇÃO 3D ("!") FLUTUANTE E ANIMADO
-    // ------------------------------------------------------------------
     const matExclamacao = new BABYLON.StandardMaterial("matExclamacao", scene);
     matExclamacao.diffuseColor = BABYLON.Color3.FromHexString("#facc15");
     matExclamacao.emissiveColor = BABYLON.Color3.FromHexString("#eab308");
@@ -87,9 +64,6 @@ export function setupSistemaJornal(scene) {
     parteHaste.material = matExclamacao;
     parteHaste.parent = grupoExclamacao;
 
-    // ------------------------------------------------------------------
-    // 3. ESTRUTURA HTML DO JORNAL (MODAL ESTILO IMPRESSO)
-    // ------------------------------------------------------------------
     const jornalOverlay = document.createElement("div");
     jornalOverlay.id = "modal-jornal-overlay";
     jornalOverlay.style.position = "fixed";
@@ -124,15 +98,24 @@ export function setupSistemaJornal(scene) {
 
         const data = getDataAtual();
         const dataFormatada = data.toLocaleDateString('pt-BR');
+        const climaSorteado = getEventoSorteadoSemana();
+
+        let textoPrevisao = "Previsão do clima: Probabilidade alta de tempo ameno";
+        if (climaSorteado.id === "chuva_forte") {
+            textoPrevisao = "Previsão do clima: Probabilidade alta de chuva";
+        } else if (climaSorteado.id === "onda_calor") {
+            textoPrevisao = "Previsão do clima: Probabilidade alta de onda de calor";
+        } else if (climaSorteado.id === "seca_severa") {
+            textoPrevisao = "Previsão do clima: Probabilidade alta de seca severa";
+        }
 
         let manchete = "";
         let artigoOpiniao = "";
         let painelComunidadeHTML = "";
 
-        // EDIÇÃO 1: NOVO GESTOR NOMEADO
         if (!primeiraEdicaoVista) {
-            manchete = "NOVO(A) GESTOR(A) ASSUME O COMANDO DA ESTAÇÃO DE TRATAMENTO DE ÁGUA!";
-            artigoOpiniao = "A administração local confirmou hoje a nomeação do novo representante responsável por gerenciar as operações da ETA. A população e os setores da cidade acompanham com grande expectativa o início dos trabalhos, aguardando investimentos em infraestrutura, estabilidade no fornecimento e gestão eficiente do saneamento. Desejamos uma excelente gestão ao novo(a) diretor(a)!";
+            manchete = "NOVO GESTOR ASSUME O COMANDO DA ESTAÇÃO DE TRATAMENTO DE ÁGUA!";
+            artigoOpiniao = "A administração local confirmou hoje a nomeação do novo representante responsável por gerenciar as operações da ETA. A população e os setores da cidade acompanham com grande expectativa o início dos trabalhos, aguardando investimentos em infraestrutura, estabilidade no fornecimento e gestão eficiente do saneamento. Desejamos uma excelente gestão ao novo diretor!";
             
             painelComunidadeHTML = `
                 <div style="font-size: 12px; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #999; padding-bottom: 4px; margin-bottom: 8px;">
@@ -143,7 +126,6 @@ export function setupSistemaJornal(scene) {
                 </div>
             `;
         } else {
-            // EDIÇÕES SUBSEQUENTES: SISTEMA DINÂMICO
             const vazao = Math.round(getVazaoAtualHora());
             const energia = getConsumoTotalEnergia();
             const bombas = getQuantidadeBombas();
@@ -196,14 +178,14 @@ export function setupSistemaJornal(scene) {
                     <div style="font-size: 12px; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #999; padding-bottom: 4px; margin-bottom: 8px;">
                         🌤️ Previsão Climática Semanal
                     </div>
-                    <div style="font-size: 18px; font-weight: bold; margin-bottom: 4px;">
-                        ${climaAtualSemana.icone} ${climaAtualSemana.nome}
+                    <div style="font-size: 14px; font-weight: bold; margin-bottom: 6px; color: #0f172a;">
+                        ${climaSorteado.icone} ${textoPrevisao}
                     </div>
                     <div style="font-size: 12px; font-weight: bold; color: #b91c1c; margin-bottom: 4px;">
-                        Efeito: ${climaAtualSemana.efeito}
+                        Efeito: ${climaSorteado.efeitoTexto}
                     </div>
                     <div style="font-size: 11px; color: #555; line-height: 1.3;">
-                        ${climaAtualSemana.detalhe}
+                        ${climaSorteado.detalhe}
                     </div>
                 </div>
 
@@ -242,9 +224,6 @@ export function setupSistemaJornal(scene) {
         }
     });
 
-    // ------------------------------------------------------------------
-    // 4. ACTION MANAGER & CURSOR HOVER DA CAIXA
-    // ------------------------------------------------------------------
     const alvos = [caixa, hitbox];
     alvos.forEach(m => {
         m.isPickable = true;
@@ -257,9 +236,6 @@ export function setupSistemaJornal(scene) {
         );
     });
 
-    // ------------------------------------------------------------------
-    // 5. ANIMAÇÃO DO ÍCONE E ATUALIZAÇÃO SEMANAL
-    // ------------------------------------------------------------------
     let tempoAnimacao = 0;
 
     registerGameAnimation(scene, (dt) => {
@@ -278,8 +254,7 @@ export function setupSistemaJornal(scene) {
 
         if (ultimoSemanaRegistrada !== -1 && semanaAtual > ultimoSemanaRegistrada) {
             temJornalNovo = true;
-            primeiraEdicaoVista = true; // Virou a semana: entra o modo dinâmico normal
-            climaAtualSemana = CLIMAS_POSSIVEIS[Math.floor(Math.random() * CLIMAS_POSSIVEIS.length)];
+            primeiraEdicaoVista = true;
         }
         
         ultimoSemanaRegistrada = semanaAtual;

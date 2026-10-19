@@ -21,6 +21,7 @@ import {
 } from './condicoes.js';
 import { adicionarEstruturaAgua, removerEstruturaAgua } from './sistema-agua.js';
 import { adicionarConsumoEstrutura, removerConsumoEstrutura } from './sistema-energia.js';
+import { registrarGastoConstrucao } from './relatorio.js';
 
 export function setupBuildSystem(scene, groundInterno) {
     let modoConstrucao = false;
@@ -221,6 +222,7 @@ export function setupBuildSystem(scene, groundInterno) {
 
                             if (!isDevModeActive()) {
                                 gastarDinheiro(custo);
+                                registrarGastoConstrucao(custo);
                                 adicionarConstrucao();
                             }
 
@@ -245,7 +247,7 @@ export function setupBuildSystem(scene, groundInterno) {
                             }
                             noRaiz.dispose();
                             
-                            removerConstrucao();
+                            registrarConstrucaoRemovida();
                             if (tipoItem) {
                                 reembolsarDinheiro(tipoItem);
                                 removerEstruturaAgua(tipoItem);

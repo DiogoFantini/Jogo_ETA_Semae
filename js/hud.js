@@ -7,6 +7,7 @@ import {
     setVelocidadeTempo 
 } from './tempo.js';
 import { CONFIG_BOMBA_AGUA, CONFIG_CAIXA_AGUA } from './variaveis-importantes.js';
+import { CUSTO_MANUTENCAO_ESTRUTURAS } from './relatorio.js';
 
 export let itemSelecionado = null; 
 let onItemSelectCallback = null;
@@ -17,14 +18,16 @@ const INFO_ESTRUTURAS = {
         descricao: CONFIG_BOMBA_AGUA.descricao,
         rotuloEspecificacao: "Vazão de Captação:",
         vazao: CONFIG_BOMBA_AGUA.vazaoTextoCard,
-        energia: CONFIG_BOMBA_AGUA.energia
+        energia: CONFIG_BOMBA_AGUA.energia,
+        manutencao: `${formatarDinheiro(CUSTO_MANUTENCAO_ESTRUTURAS.bomba_agua)}/semana`
     },
     caixa_agua: {
         titulo: "🚰 Caixa d'água Elevada",
         descricao: CONFIG_CAIXA_AGUA.descricao,
         rotuloEspecificacao: "Abastecimento (passivo):",
         vazao: CONFIG_CAIXA_AGUA.mecanicaTextoCard,
-        energia: CONFIG_CAIXA_AGUA.energia
+        energia: CONFIG_CAIXA_AGUA.energia,
+        manutencao: `${formatarDinheiro(CUSTO_MANUTENCAO_ESTRUTURAS.caixa_agua)}/semana`
     }
 };
 
@@ -81,7 +84,7 @@ export function setupHUD(scene) {
 
     sidebarContainer.appendChild(hudContainer);
 
-    // 2. Barra de Controle de Tempo (Ajustada para 1x, 5x, 10x)
+    // 2. Barra de Controle de Tempo
     const barraTempo = document.createElement("div");
     barraTempo.id = "barra-controle-tempo";
     barraTempo.style.backgroundColor = "rgba(15, 23, 42, 0.95)";
@@ -302,7 +305,8 @@ function criarMenuConstrucaoHUD() {
                     </div>
                     <div style="border-top: 1px dashed #334155; padding-top: 8px; font-size: 12px; display: flex; flex-direction: column; gap: 4px;">
                         <div>🌊 <strong style="color: #94a3b8;">${info.rotuloEspecificacao}</strong><br><span style="color: #38bdf8; font-weight: bold; display: block; margin-top: 2px;">${info.vazao}</span></div>
-                        <div style="margin-top: 4px;">⚡ <strong style="color: #94a3b8;">Gasto de Energia:</strong> <span style="color: #f87171; font-weight: bold; float: right;">${info.energia}</span></div>
+                        <div style="margin-top: 4px;">⚡ <strong style="color: #94a3b8;">Consumo de Energia:</strong> <span style="color: #f87171; font-weight: bold; float: right;">${info.energia}</span></div>
+                        <div>🛠️ <strong style="color: #94a3b8;">Custo de Manutenção:</strong> <span style="color: #fde047; font-weight: bold; float: right;">${info.manutencao}</span></div>
                     </div>
                 `;
                 
@@ -475,7 +479,7 @@ export function atualizarTerreno(usado, total) {
 
 export function atualizarAguaDistribuida(valor) {
     const el = document.getElementById("hud-distribuida");
-    if (el) el.innerText = valor;
+    if (el) el.innerHTML = valor;
 }
 
 export function atualizarAguaTratada(porcentagem) {
