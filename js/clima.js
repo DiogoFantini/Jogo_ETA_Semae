@@ -31,7 +31,7 @@ export const EVENTOS_CLIMATICOS = {
         icone: "🌧️",
         multiplicadorVazaoBombas: 1.0,
         multiplicadorDemanda: 1.0,
-        multiplicadorConsumoEnergia: 1.50, // +50% de gasto de energia
+        multiplicadorConsumoEnergia: 1.50,
         efeitoTexto: "Tratamento difícil (Custo e Energia +50%)",
         detalhe: "A turbidez e lama no rio exigem mais produtos químicos e força dos filtros, aumentando os custos de tratamento."
     },
@@ -39,7 +39,7 @@ export const EVENTOS_CLIMATICOS = {
         id: "seca_severa",
         nome: "Seca Severa & Estiagem",
         icone: "🌵",
-        multiplicadorVazaoBombas: 0.70, // -30% na captação
+        multiplicadorVazaoBombas: 0.70,
         multiplicadorDemanda: 1.0,
         multiplicadorConsumoEnergia: 1.0,
         efeitoTexto: "Captação reduzida em -30%",
@@ -153,7 +153,6 @@ function processarCicloHoraClima(scene, diasTotais, horaAtual) {
         return;
     }
 
-    // FASE A: EVENTO INATIVO (+3% POR HORA)
     if (!eventoAtivoNoMomento) {
         probabilidadeInicio = Math.min(100, probabilidadeInicio + 3);
         const rollInicio = Math.random() * 100;
@@ -167,9 +166,7 @@ function processarCicloHoraClima(scene, diasTotais, horaAtual) {
             exibirPopUpAviso(`${eventoClimaticoAtual.icone} Atenção: ${eventoClimaticoAtual.nome} começou! (${eventoClimaticoAtual.efeitoTexto})`);
             console.log(`[CLIMA] Evento ${eventoClimaticoAtual.nome} iniciado!`);
         }
-    } 
-    // FASE B: EVENTO ATIVO (+3% POR HORA PARA TERMINAR)
-    else {
+    } else {
         probabilidadeFim = Math.min(100, probabilidadeFim + 3);
         const rollFim = Math.random() * 100;
 
@@ -188,7 +185,7 @@ function desativarEventoAtivo(scene) {
 }
 
 // ==========================================================
-// EFEITOS VISUAIS
+// EFEITOS VISUAIS EXPANDIDOS PARA TODO O CENÁRIO
 // ==========================================================
 function criarOverlaySecaHTML() {
     if (document.getElementById("overlay-clima-seca")) return;
@@ -215,11 +212,12 @@ function criarOndasCalor3D(scene) {
 
     grupoOndas3D = new BABYLON.TransformNode("grupoOndasCalor3D", scene);
 
-    const qtdOndas = 14;
+    // Quantidade aumentada para cobrir todo o mapa com boa densidade
+    const qtdOndas = 40;
     for (let i = 0; i < qtdOndas; i++) {
-        const passos = 25;
-        const comprimento = 10 + Math.random() * 8;
-        const amplitude = 0.35 + Math.random() * 0.25;
+        const passos = 30;
+        const comprimento = 14 + Math.random() * 12;
+        const amplitude = 0.4 + Math.random() * 0.3;
 
         const points = [];
         for (let p = 0; p <= passos; p++) {
@@ -238,22 +236,23 @@ function criarOndasCalor3D(scene) {
         linha.isPickable = false;
         linha.parent = grupoOndas3D;
 
-        const posX = -20 + Math.random() * 35;
-        const posY = 0.6 + Math.random() * 2.8;
-        const posZ = -22 + Math.random() * 44;
+        // Distribuição ampla em todo o cenário (X: -110 a 110, Z: -110 a 110, Y: 0.5 a 6.0)
+        const posX = -110 + Math.random() * 220;
+        const posY = 0.5 + Math.random() * 5.5;
+        const posZ = -110 + Math.random() * 220;
 
         linha.position.set(posX, posY, posZ);
-        linha.rotation.y = (Math.random() - 0.5) * 0.4;
+        linha.rotation.y = (Math.random() - 0.5) * 0.5;
 
         ondas3DMeshes.push({
             mesh: linha,
             comprimento: comprimento,
             amplitude: amplitude,
-            velocidadeX: 3.5 + Math.random() * 2.5,
+            velocidadeX: 4.0 + Math.random() * 3.0,
             fase: Math.random() * Math.PI * 2,
             passos: passos,
-            xMin: -25,
-            xMax: 25,
+            xMin: -110,
+            xMax: 110,
             yBase: posY,
             zBase: posZ
         });
@@ -267,8 +266,8 @@ function atualizarOndasCalor3D(dt) {
         o.mesh.position.x += o.velocidadeX * dt;
         if (o.mesh.position.x > o.xMax) {
             o.mesh.position.x = o.xMin;
-            o.mesh.position.z = -22 + Math.random() * 44;
-            o.mesh.position.y = 0.6 + Math.random() * 2.8;
+            o.mesh.position.z = -110 + Math.random() * 220;
+            o.mesh.position.y = 0.5 + Math.random() * 5.5;
         }
 
         o.fase += dt * 4.0;
@@ -287,7 +286,8 @@ function atualizarOndasCalor3D(dt) {
 }
 
 function criarEfeitosParticulas(scene) {
-    sistemaChuva = new BABYLON.ParticleSystem("chuvaParticulas", 1200, scene);
+    // Aumento na contagem de partículas para cobrir todo o cenário
+    sistemaChuva = new BABYLON.ParticleSystem("chuvaParticulas", 3500, scene);
     
     const texChuva = new BABYLON.DynamicTexture("texChuvaDrop", { width: 16, height: 64 }, scene, false);
     const ctxC = texChuva.getContext();
@@ -301,23 +301,25 @@ function criarEfeitosParticulas(scene) {
     texChuva.hasAlpha = true;
 
     sistemaChuva.particleTexture = texChuva;
-    sistemaChuva.emitter = new BABYLON.Vector3(5, 22, 0);
-    sistemaChuva.minEmitBox = new BABYLON.Vector3(-35, 0, -35);
-    sistemaChuva.maxEmitBox = new BABYLON.Vector3(35, 0, 35);
     
-    sistemaChuva.direction1 = new BABYLON.Vector3(-0.5, -28, -0.5);
-    sistemaChuva.direction2 = new BABYLON.Vector3(-1.2, -32, -1.2);
+    // Caixa de emissão cobrindo toda a extensão do mapa
+    sistemaChuva.emitter = new BABYLON.Vector3(0, 32, 0);
+    sistemaChuva.minEmitBox = new BABYLON.Vector3(-120, 0, -120);
+    sistemaChuva.maxEmitBox = new BABYLON.Vector3(120, 0, 120);
+    
+    sistemaChuva.direction1 = new BABYLON.Vector3(-0.5, -30, -0.5);
+    sistemaChuva.direction2 = new BABYLON.Vector3(-1.2, -34, -1.2);
     sistemaChuva.minEmitPower = 0.9;
-    sistemaChuva.maxEmitPower = 1.3;
+    sistemaChuva.maxEmitPower = 1.4;
     
     sistemaChuva.minSize = 0.15;
     sistemaChuva.maxSize = 0.35;
     sistemaChuva.minScaleY = 5.0;
     sistemaChuva.maxScaleY = 9.0;
     
-    sistemaChuva.minLifeTime = 0.7;
-    sistemaChuva.maxLifeTime = 1.2;
-    sistemaChuva.emitRate = 900;
+    sistemaChuva.minLifeTime = 0.8;
+    sistemaChuva.maxLifeTime = 1.4;
+    sistemaChuva.emitRate = 2400; // Taxa de emissão proporcional ao tamanho do mapa
     sistemaChuva.blendMode = BABYLON.ParticleSystem.BLENDMODE_STANDARD;
 }
 

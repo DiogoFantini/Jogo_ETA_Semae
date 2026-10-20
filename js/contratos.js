@@ -5,6 +5,10 @@ import { getHistoricoRelatorios, registrarEntradaFinanceira, registrarGastoMulta
 import { getEventoClimaticoAtual } from './clima.js';
 import { atualizarMeta } from './hud.js';
 
+// ==========================================================
+// CONFIGURAÇÕES E LIMITES DE CONTRATOS
+// ==========================================================
+export let MAX_CONTRATOS_ATIVOS = 5; // Pode ser expandido futuramente
 let contratosDisponiveis = [];
 let contratosAtivos = [];
 let proximoIdContrato = 1;
@@ -31,26 +35,23 @@ function entre(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function gerarNovoContrato(dificuldadeForçada = null) {
-    const tipos = ["facil", "medio", "dificil"];
-    const dif = dificuldadeForçada || tipos[Math.floor(Math.random() * tipos.length)];
-
-    const clientesFiltrados = NOMES_CLIENTES.filter(c => c.tipo === dif);
+function gerarNovoContrato(dificuldadeForçada) {
+    const clientesFiltrados = NOMES_CLIENTES.filter(c => c.tipo === dificuldadeForçada);
     const clienteEscolhido = clientesFiltrados[Math.floor(Math.random() * clientesFiltrados.length)].nome;
 
     let demandaVazaoHora = 0;
     let duracaoSemanas = 0;
     let pagamentoSemanal = 0;
 
-    if (dif === "facil") {
+    if (dificuldadeForçada === "facil") {
         demandaVazaoHora = entre(12, 25);
         duracaoSemanas = entre(2, 4);
         pagamentoSemanal = entre(4000, 9000);
-    } else if (dif === "medio") {
+    } else if (dificuldadeForçada === "medio") {
         demandaVazaoHora = entre(30, 75);
         duracaoSemanas = entre(4, 8);
         pagamentoSemanal = entre(15000, 32000);
-    } else {
+    } else { // dificil
         demandaVazaoHora = entre(80, 180);
         duracaoSemanas = entre(8, 16);
         pagamentoSemanal = entre(45000, 95000);
@@ -61,13 +62,25 @@ function gerarNovoContrato(dificuldadeForçada = null) {
     return {
         id: proximoIdContrato++,
         cliente: clienteEscolhido,
-        dificuldade: dif,
+        dificuldade: dificuldadeForçada,
         demandaHora: demandaVazaoHora,
         duracaoSemanas: duracaoSemanas,
         semanasConcluidas: 0,
         pagamentoSemanal: pagamentoSemanal,
         valorTotalFinal: valorTotalFinal
     };
+}
+
+// Gera o lote equilibrado de 6 novos contratos (2 Fáceis, 2 Médios, 2 Difíceis)
+function gerarLoteEquilibradoContratos() {
+    contratosDisponiveis = [
+        gerarNovoContrato("facil"),
+        gerarNovoContrato("facil"),
+        gerarNovoContrato("medio"),
+        gerarNovoContrato("medio"),
+        gerarNovoContrato("dificil"),
+        gerarNovoContrato("dificil")
+    ];
 }
 
 export function atualizarMetaHUDContratos() {
@@ -83,16 +96,14 @@ export function atualizarMetaHUDContratos() {
         const atendeDemanda = vazaoAtualETA >= demandaEfetivaTotal;
         
         const sufixoCalor = multDemanda > 1.0 ? " 🔥 +25%" : "";
-        const textoMeta = `${demandaEfetivaTotal} m³/h${sufixoCalor} (${contratosAtivos.length} ${contratosAtivos.length === 1 ? 'contrato' : 'contratos'})`;
+        const textoMeta = `${demandaEfetivaTotal} m³/h${sufixoCalor} (${contratosAtivos.length}/${MAX_CONTRATOS_ATIVOS} ${contratosAtivos.length === 1 ? 'contrato' : 'contratos'})`;
         atualizarMeta(textoMeta, atendeDemanda);
     }
 }
 
 export function setupPainelContratos(scene) {
     if (contratosDisponiveis.length === 0) {
-        contratosDisponiveis.push(gerarNovoContrato("facil"));
-        contratosDisponiveis.push(gerarNovoContrato("medio"));
-        contratosDisponiveis.push(gerarNovoContrato("dificil"));
+        gerarLoteEquilibradoContratos();
     }
 
     atualizarMetaHUDContratos();
@@ -135,7 +146,7 @@ export function setupPainelContratos(scene) {
 
         <div style="display: flex; gap: 8px; margin-bottom: 15px; border-bottom: 1px solid #334155; padding-bottom: 10px;">
             <button id="aba-disponiveis" style="flex: 1; background-color: #0284c7; color: white; border: none; padding: 8px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px;">Disponíveis (${contratosDisponiveis.length})</button>
-            <button id="aba-ativos" style="flex: 1; background-color: #1e293b; color: #94a3b8; border: 1px solid #334155; padding: 8px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px;">Ativos (${contratosAtivos.length})</button>
+            <button id="aba-ativos" style="flex: 1; background-color: #1e293b; color: #94a3b8; border: 1px solid #334155; padding: 8px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px;">Ativos (${contratosAtivos.length}/${MAX_CONTRATOS_ATIVOS})</button>
             <button id="aba-relatorio" style="flex: 1; background-color: #1e293b; color: #94a3b8; border: 1px solid #334155; padding: 8px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px;">📊 Relatório Mensal</button>
         </div>
 
@@ -164,7 +175,7 @@ export function setupPainelContratos(scene) {
         document.getElementById("val-demanda-contratada").innerText = `${demandaContratadaTotal} m³/h ${multDemanda > 1.0 ? '(🔥 Onda de Calor)' : ''}`;
 
         btnAbaDisp.innerText = `Disponíveis (${contratosDisponiveis.length})`;
-        btnAbaAtivos.innerText = `Ativos (${contratosAtivos.length})`;
+        btnAbaAtivos.innerText = `Ativos (${contratosAtivos.length}/${MAX_CONTRATOS_ATIVOS})`;
 
         [btnAbaDisp, btnAbaAtivos, btnAbaRelatorio].forEach(b => {
             b.style.backgroundColor = "#1e293b";
@@ -244,7 +255,7 @@ export function setupPainelContratos(scene) {
                     </div>
 
                     <div style="margin-top: 10px; padding-top: 6px; border-top: 1px dashed #334155; font-size: 11px; color: #38bdf8; text-align: center;">
-                        💧 Volume Total de Água Trata/Distribuída na Semana: <strong>${r.aguaDistribuidaM3.toLocaleString('pt-BR')} m³</strong>
+                        💧 Volume Total de Água Tratada/Distribuída na Semana: <strong>${r.aguaDistribuidaM3.toLocaleString('pt-BR')} m³</strong>
                     </div>
                 `;
 
@@ -302,8 +313,14 @@ export function setupPainelContratos(scene) {
             container.appendChild(card);
         });
 
+        // Evento de Assinar Contrato (Respeita o limite de 5 ativos)
         container.querySelectorAll(".btn-assinar-contrato").forEach(btn => {
             btn.addEventListener("click", (e) => {
+                if (contratosAtivos.length >= MAX_CONTRATOS_ATIVOS) {
+                    exibirPopUpAviso(`⚠️ Limite de ${MAX_CONTRATOS_ATIVOS} contratos ativos atingido! Conclua um contrato antes de assinar outro.`);
+                    return;
+                }
+
                 const id = parseInt(e.target.getAttribute("data-id"));
                 const idx = contratosDisponiveis.findIndex(c => c.id === id);
                 if (idx !== -1) {
@@ -323,20 +340,22 @@ export function setupPainelContratos(scene) {
     document.getElementById("btn-fechar-contratos").addEventListener("click", () => { painelOverlay.style.display = "none"; });
     painelOverlay.addEventListener("click", (e) => { if (e.target === painelOverlay) painelOverlay.style.display = "none"; });
 
+    // CICLO DO TEMPO: RENOVAÇÃO DOS 6 DISPONÍVEIS A CADA 3 DIAS E COBRANÇA SEMANAL
     registerGameAnimation(scene, () => {
         const data = getDataAtual();
         const diaAtual = Math.floor(data.getTime() / (1000 * 60 * 60 * 24));
 
+        // 1. A CADA 3 DIAS: Descarta os não selecionados e gera 6 novos contratos (2 fáceis, 2 médios, 2 difíceis)
         if (ultimoDiaGeracao !== -1 && (diaAtual - ultimoDiaGeracao) >= 3) {
-            if (contratosDisponiveis.length < 5) {
-                contratosDisponiveis.push(gerarNovoContrato());
-                if (painelOverlay.style.display === "flex") renderizarLista();
-            }
+            gerarLoteEquilibradoContratos();
+            exibirPopUpAviso("📜 Novos contratos disponíveis na Sede!");
+            if (painelOverlay.style.display === "flex") renderizarLista();
             ultimoDiaGeracao = diaAtual;
         } else if (ultimoDiaGeracao === -1) {
             ultimoDiaGeracao = diaAtual;
         }
 
+        // 2. A CADA 7 DIAS: Avaliação dos contratos ativos, pagamentos e multas
         if (ultimoDiaSemana !== -1 && (diaAtual - ultimoDiaSemana) >= 7) {
             ultimoDiaSemana = diaAtual;
 
