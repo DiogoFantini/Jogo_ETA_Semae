@@ -1,82 +1,61 @@
-import { registerGameAnimation, getDataAtual } from './tempo.js';
+import { registerGameAnimation, getDataAtual, getDiasDecorridos } from './tempo.js';
 import { formatarDinheiro, gastarDinheiro, exibirPopUpAviso } from './condicoes.js';
 import { getConsumoTotalEnergia } from './sistema-energia.js';
 import { getQuantidadeBombas, getQuantidadeCaixas, getAguaDistribuida } from './sistema-agua.js';
 
-// Custos Razoáveis de Manutenção Semanal das Estruturas
 export const CUSTO_MANUTENCAO_ESTRUTURAS = {
-    bomba_agua: 350, // R$ 350 por semana por bomba
-    caixa_agua: 150  // R$ 150 por semana por caixa d'água
+    bomba_agua: 350,
+    caixa_agua: 150
 };
 
-// Custo do kW/h por semana (R$ 120,00 por kW/h acumulado na semana)
 export const VALOR_KWH_SEMANAL = 120;
 
-// Registros do Período Atual
 let receitaAtualSemana = 0;
 let gastosConstrucaoAtual = 0;
-let gastosQuimicosAtual = 0;
+let gastosManutencaoChuvaAtual = 0;
 let gastosMultasAtual = 0;
 let aguaAcumuladaSemanaInicio = 0;
 
 let historicoRelatoriosSemanais = [];
-let ultimoDiaCobrado = -1;
+let ultimaSemanaCobrada = 0;
 
-// ==========================================================
-// REGISTRO DE TRANSAÇÕES FINANCEIRAS E OPERACIONAIS
-// ==========================================================
-export function registrarEntradaFinanceira(valor) {
-    receitaAtualSemana += valor;
-}
+export function registrarEntradaFinanceira(valor) { receitaAtualSemana += valor; }
+export function registrarGastoConstrucao(valor) { gastosConstrucaoAtual += valor; }
+export function registrarAdicionalManutencaoChuva(valor) { gastosManutencaoChuvaAtual += valor; }
+export function registrarGastoMulta(valor) { gastosMultasAtual += valor; }
+export function getHistoricoRelatorios() { return historicoRelatoriosSemanais; }
 
-export function registrarGastoConstrucao(valor) {
-    gastosConstrucaoAtual += valor;
-}
-
-export function registrarGastoQuimico(valor) {
-    gastosQuimicosAtual += valor;
-}
-
-export function registrarGastoMulta(valor) {
-    gastosMultasAtual += valor;
-}
-
-export function getHistoricoRelatorios() {
-    return historicoRelatoriosSemanais;
-}
-
-// ==========================================================
-// PROCESSAMENTO SEMANAL DE DESPESAS E RELATÓRIO
-// ==========================================================
 export function setupSistemaRelatorio(scene) {
+    aguaAcumuladaSemanaInicio = getAguaDistribuida();
+
     registerGameAnimation(scene, () => {
         const data = getDataAtual();
-        const diasTotais = Math.floor(data.getTime() / (1000 * 60 * 60 * 24));
+        const diasDecorridos = getDiasDecorridos(data);
+        const semanaAtual = Math.floor(diasDecorridos / 7);
 
-        if (ultimoDiaCobrado !== -1 && (diasTotais - ultimoDiaCobrado) >= 7) {
-            fecharEGerarRelatorioSemanal(diasTotais);
-            ultimoDiaCobrado = diasTotais;
-        } else if (ultimoDiaCobrado === -1) {
-            ultimoDiaCobrado = diasTotais;
-            aguaAcumuladaSemanaInicio = getAguaDistribuida();
+        // Dispara o fechamento do relatório a cada virada de semana (Segunda-Feira 07:00)
+        if (semanaAtual > ultimaSemanaCobrada) {
+            fecharEGerarRelatorioSemanal(ultimaSemanaCobrada + 1);
+            ultimaSemanaCobrada = semanaAtual;
         }
     });
 }
 
-function fecharEGerarRelatorioSemanal(diasTotais) {
-    const numSemana = Math.floor(diasTotais / 7);
+function fecharEGerarRelatorioSemanal(numSemana) {
     const kwTotal = getConsumoTotalEnergia();
     const gastoEnergia = kwTotal * VALOR_KWH_SEMANAL;
 
     const qtdBombas = getQuantidadeBombas();
     const qtdCaixas = getQuantidadeCaixas();
-    const manutencaoBombas = qtdBombas * CUSTO_MANUTENCAO_ESTRUTURAS.bomba_agua;
-    const manutencaoCaixas = qtdCaixas * CUSTO_MANUTENCAO_ESTRUTURAS.caixa_agua;
-    const gastoManutencaoTotal = manutencaoBombas + manutencaoCaixas;
+    const manutencaoBaseBombas = qtdBombas * CUSTO_MANUTENCAO_ESTRUTURAS.bomba_agua;
+    const manutencaoBaseCaixas = qtdCaixas * CUSTO_MANUTENCAO_ESTRUTURAS.caixa_agua;
+    const manutencaoBaseTotal = manutencaoBaseBombas + manutencaoBaseCaixas;
 
-    const totalDespesasFixas = gastoEnergia + gastoManutencaoTotal;
+    const manutencaoChuvaArredondada = Math.round(gastosManutencaoChuvaAtual);
+    const manutencaoTotalFinal = manutencaoBaseTotal + manutencaoChuvaArredondada;
 
-    // Cobra o valor de energia e manutenção
+    const totalDespesasFixas = gastoEnergia + manutencaoTotalFinal;
+
     if (totalDespesasFixas > 0) {
         gastarDinheiro(totalDespesasFixas);
     }
@@ -85,7 +64,7 @@ function fecharEGerarRelatorioSemanal(diasTotais) {
     const aguaProduzidaSemana = Math.max(0, totalAguaAgora - aguaAcumuladaSemanaInicio);
     aguaAcumuladaSemanaInicio = totalAguaAgora;
 
-    const totalGastosGerais = gastoEnergia + gastoManutencaoTotal + gastosConstrucaoAtual + gastosQuimicosAtual + gastosMultasAtual;
+    const totalGastosGerais = gastoEnergia + manutencaoTotalFinal + gastosConstrucaoAtual + gastosMultasAtual;
     const saldoLiquidoSemana = receitaAtualSemana - totalGastosGerais;
 
     const relatorioSemana = {
@@ -100,26 +79,23 @@ function fecharEGerarRelatorioSemanal(diasTotais) {
         },
         despesas: {
             energia: gastoEnergia,
-            manutencaoBombas: manutencaoBombas,
-            manutencaoCaixas: manutencaoCaixas,
-            manutencaoTotal: gastoManutencaoTotal,
+            manutencaoBase: manutencaoBaseTotal,
+            manutencaoChuva: manutencaoChuvaArredondada,
+            manutencaoTotal: manutencaoTotalFinal,
             construcao: gastosConstrucaoAtual,
-            quimicosChuva: gastosQuimicosAtual,
             multasDeficit: gastosMultasAtual,
             total: totalGastosGerais
         },
         saldoLiquido: saldoLiquidoSemana
     };
 
-    historicoRelatoriosSemanais.unshift(relatorioSemana); // Mais recente primeiro
+    historicoRelatoriosSemanais.unshift(relatorioSemana);
 
-    // Reseta acumuladores para a próxima semana
     receitaAtualSemana = 0;
     gastosConstrucaoAtual = 0;
-    gastosQuimicosAtual = 0;
+    gastosManutencaoChuvaAtual = 0;
     gastosMultasAtual = 0;
 
-    // POP-UP DE AVISO AO FINAL DA SEMANA
     exibirAvisoRelatorioDisponivel();
 }
 

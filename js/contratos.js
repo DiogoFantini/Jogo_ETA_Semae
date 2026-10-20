@@ -8,7 +8,7 @@ import { atualizarMeta } from './hud.js';
 // ==========================================================
 // CONFIGURAÇÕES E LIMITES DE CONTRATOS
 // ==========================================================
-export let MAX_CONTRATOS_ATIVOS = 5; // Pode ser expandido futuramente
+export let MAX_CONTRATOS_ATIVOS = 5;
 let contratosDisponiveis = [];
 let contratosAtivos = [];
 let proximoIdContrato = 1;
@@ -71,7 +71,6 @@ function gerarNovoContrato(dificuldadeForçada) {
     };
 }
 
-// Gera o lote equilibrado de 6 novos contratos (2 Fáceis, 2 Médios, 2 Difíceis)
 function gerarLoteEquilibradoContratos() {
     contratosDisponiveis = [
         gerarNovoContrato("facil"),
@@ -204,12 +203,22 @@ export function setupPainelContratos(scene) {
                 cardRelatorio.style.padding = "15px";
                 cardRelatorio.style.marginBottom = "10px";
 
-                const corSaldo = r.saldoLiquido >= 0 ? "#4ade80" : "#f87171";
+                const saldo = r.saldoLiquido || 0;
+                const corSaldo = saldo >= 0 ? "#4ade80" : "#f87171";
+
+                const gastoEnergia = r.despesas?.energia || 0;
+                const manutencaoBase = r.despesas?.manutencaoBase || r.despesas?.manutencaoTotal || 0;
+                const manutencaoChuva = r.despesas?.manutencaoChuva || r.despesas?.quimicosChuva || 0;
+                const gastoConstrucao = r.despesas?.construcao || 0;
+                const multas = r.despesas?.multasDeficit || 0;
+                const totalDespesas = r.despesas?.total || 0;
+                const receitaContratos = r.receitas?.contratos || 0;
+                const receitaTotal = r.receitas?.total || 0;
 
                 cardRelatorio.innerHTML = `
                     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 8px; margin-bottom: 10px;">
                         <strong style="color: #38bdf8; font-size: 15px;">📅 Relatório da Semana ${r.semana}</strong>
-                        <span style="font-size: 13px;">Resultado Líquido: <strong style="color: ${corSaldo}; font-size: 15px;">${formatarDinheiro(r.saldoLiquido)}</strong></span>
+                        <span style="font-size: 13px;">Resultado Líquido: <strong style="color: ${corSaldo}; font-size: 15px;">${formatarDinheiro(saldo)}</strong></span>
                     </div>
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 12px;">
@@ -217,45 +226,45 @@ export function setupPainelContratos(scene) {
                             <div style="font-weight: bold; color: #4ade80; margin-bottom: 6px; text-transform: uppercase;">📈 Receitas (Entradas)</div>
                             <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
                                 <span>Contratos de Água:</span>
-                                <strong>${formatarDinheiro(r.receitas.contratos)}</strong>
+                                <strong>${formatarDinheiro(receitaContratos)}</strong>
                             </div>
                             <div style="border-top: 1px solid #334155; margin-top: 6px; padding-top: 4px; display: flex; justify-content: space-between; font-weight: bold; color: #4ade80;">
                                 <span>Total Recebido:</span>
-                                <span>${formatarDinheiro(r.receitas.total)}</span>
+                                <span>${formatarDinheiro(receitaTotal)}</span>
                             </div>
                         </div>
 
                         <div style="background: rgba(248, 113, 113, 0.05); padding: 10px; border-radius: 6px; border: 1px solid rgba(248, 113, 113, 0.2);">
                             <div style="font-weight: bold; color: #f87171; margin-bottom: 6px; text-transform: uppercase;">📉 Despesas (Saídas)</div>
                             <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
-                                <span>⚡ Energia (${r.kwConsumo} kW/h):</span>
-                                <span style="color: #f87171;">-${formatarDinheiro(r.despesas.energia)}</span>
+                                <span>⚡ Energia (${r.kwConsumo || 0} kW/h):</span>
+                                <span style="color: #f87171;">-${formatarDinheiro(gastoEnergia)}</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
-                                <span>🛠️ Manutenção Estruturas:</span>
-                                <span style="color: #f87171;">-${formatarDinheiro(r.despesas.manutencaoTotal)}</span>
+                                <span>🛠️ Manutenção Base:</span>
+                                <span style="color: #f87171;">-${formatarDinheiro(manutencaoBase)}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+                                <span>🌧️ Adicional Chuva Forte:</span>
+                                <span style="color: #f87171;">-${formatarDinheiro(manutencaoChuva)}</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
                                 <span>🏗️ Novas Construções:</span>
-                                <span style="color: #f87171;">-${formatarDinheiro(r.despesas.construcao)}</span>
+                                <span style="color: #f87171;">-${formatarDinheiro(gastoConstrucao)}</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
-                                <span>🧪 Químicos (Chuva Forte):</span>
-                                <span style="color: #f87171;">-${formatarDinheiro(r.despesas.quimicosChuva)}</span>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
-                                <span>⚠️ Multas por Deficit:</span>
-                                <span style="color: #f87171;">-${formatarDinheiro(r.despesas.multasDeficit)}</span>
+                                <span>⚠️ Multas por Déficit:</span>
+                                <span style="color: #f87171;">-${formatarDinheiro(multas)}</span>
                             </div>
                             <div style="border-top: 1px solid #334155; margin-top: 6px; padding-top: 4px; display: flex; justify-content: space-between; font-weight: bold; color: #f87171;">
                                 <span>Total Gastos:</span>
-                                <span>-${formatarDinheiro(r.despesas.total)}</span>
+                                <span>-${formatarDinheiro(totalDespesas)}</span>
                             </div>
                         </div>
                     </div>
 
                     <div style="margin-top: 10px; padding-top: 6px; border-top: 1px dashed #334155; font-size: 11px; color: #38bdf8; text-align: center;">
-                        💧 Volume Total de Água Tratada/Distribuída na Semana: <strong>${r.aguaDistribuidaM3.toLocaleString('pt-BR')} m³</strong>
+                        💧 Volume Total de Água Tratada/Distribuída na Semana: <strong>${(r.aguaDistribuidaM3 || 0).toLocaleString('pt-BR')} m³</strong>
                     </div>
                 `;
 
@@ -298,7 +307,7 @@ export function setupPainelContratos(scene) {
                         </div>
                         <div style="font-size: 12px; color: #cbd5e1; display: flex; flex-direction: column; gap: 2px;">
                             <span>🌊 Demanda: <strong style="color: #38bdf8;">${demandaExibicao} m³/h</strong> | ⏳ Duração: <strong>${c.duracaoSemanas} semanas</strong></span>
-                            <span>💵 Ganho Semanal: <strong style="color: #4ade80;">${formatarDinheiro(c.pagamentoSemanal)}/sem</strong></span>
+                            <span>💵 Ganho Semanal: <strong style="color: #4ade80;">${formatarDinheiro(c.pagamentoSemanal || 0)}/sem</strong></span>
                         </div>
                     </div>
                     <div>
@@ -313,7 +322,6 @@ export function setupPainelContratos(scene) {
             container.appendChild(card);
         });
 
-        // Evento de Assinar Contrato (Respeita o limite de 5 ativos)
         container.querySelectorAll(".btn-assinar-contrato").forEach(btn => {
             btn.addEventListener("click", (e) => {
                 if (contratosAtivos.length >= MAX_CONTRATOS_ATIVOS) {
@@ -340,12 +348,10 @@ export function setupPainelContratos(scene) {
     document.getElementById("btn-fechar-contratos").addEventListener("click", () => { painelOverlay.style.display = "none"; });
     painelOverlay.addEventListener("click", (e) => { if (e.target === painelOverlay) painelOverlay.style.display = "none"; });
 
-    // CICLO DO TEMPO: RENOVAÇÃO DOS 6 DISPONÍVEIS A CADA 3 DIAS E COBRANÇA SEMANAL
     registerGameAnimation(scene, () => {
         const data = getDataAtual();
         const diaAtual = Math.floor(data.getTime() / (1000 * 60 * 60 * 24));
 
-        // 1. A CADA 3 DIAS: Descarta os não selecionados e gera 6 novos contratos (2 fáceis, 2 médios, 2 difíceis)
         if (ultimoDiaGeracao !== -1 && (diaAtual - ultimoDiaGeracao) >= 3) {
             gerarLoteEquilibradoContratos();
             exibirPopUpAviso("📜 Novos contratos disponíveis na Sede!");
@@ -355,7 +361,6 @@ export function setupPainelContratos(scene) {
             ultimoDiaGeracao = diaAtual;
         }
 
-        // 2. A CADA 7 DIAS: Avaliação dos contratos ativos, pagamentos e multas
         if (ultimoDiaSemana !== -1 && (diaAtual - ultimoDiaSemana) >= 7) {
             ultimoDiaSemana = diaAtual;
 

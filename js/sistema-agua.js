@@ -2,14 +2,12 @@ import { registerGameAnimation, getDataAtual } from './tempo.js';
 import { atualizarAguaDistribuida } from './hud.js';
 import { CONFIG_BOMBA_AGUA, CONFIG_CAIXA_AGUA } from './variaveis-importantes.js';
 import { getEventoClimaticoAtual } from './clima.js';
-import { gastarDinheiro } from './condicoes.js';
 
 let totalAguaDistribuida = 0;
 let quantidadeBombas = 0;
 let quantidadeCaixas = 0;
 
 const MINUTOS_INGAME_POR_SEGUNDO_REAL = 2.4;
-const CUSTO_QUIMICO_TURBIDEZ_M3 = 0.50; // R$ 0,50 extra por m³ em dias de chuva forte
 
 export function adicionarEstruturaAgua(tipo) {
     if (tipo === "bomba_agua") quantidadeBombas++;
@@ -61,14 +59,7 @@ export function iniciarSistemaAgua(scene) {
                 multiplicadorCaixa += quantidadeCaixas * CONFIG_CAIXA_AGUA.bonusDistribuicaoDia;
             }
 
-            const aguaFinalDistribuida = aguaProduzidaNoFrame * multiplicadorCaixa;
-            totalAguaDistribuida += aguaFinalDistribuida;
-
-            // Se estiver chovendo, cobra o custo extra dos produtos químicos de tratamento
-            if (ehChuva) {
-                const custoQuimico = aguaFinalDistribuida * CUSTO_QUIMICO_TURBIDEZ_M3;
-                gastarDinheiro(custoQuimico);
-            }
+            totalAguaDistribuida += aguaProduzidaNoFrame * multiplicadorCaixa;
         }
 
         const vazaoHora = getVazaoAtualHora();
@@ -79,7 +70,7 @@ export function iniciarSistemaAgua(scene) {
         if (multSeca < 1.0) {
             valorFormatado += " <span style='color: #fb923c; font-size: 13px;'>(🌵 -30% Seca)</span>";
         } else if (ehChuva) {
-            valorFormatado += " <span style='color: #60a5fa; font-size: 13px;'>(🌧️ Tratamento Complexo)</span>";
+            valorFormatado += " <span style='color: #60a5fa; font-size: 13px;'>(🌧️ Manutenção +50%/h)</span>";
         }
 
         atualizarAguaDistribuida(valorFormatado);

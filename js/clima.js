@@ -1,8 +1,9 @@
-import { registerGameAnimation, getDataAtual } from './tempo.js';
-import { exibirPopUpAviso } from './condicoes.js';
+import { registerGameAnimation, getDataAtual, getDiasDecorridos } from './tempo.js';
+import { getQuantidadeBombas, getQuantidadeCaixas } from './sistema-agua.js';
+import { CUSTO_MANUTENCAO_ESTRUTURAS, registrarAdicionalManutencaoChuva } from './relatorio.js';
 
 // ==========================================================
-// CONFIGURAÇÃO DOS EVENTOS CLIMÁTICOS E CHANCES
+// CONFIGURAÇÃO DOS EVENTOS CLIMÁTICOS
 // ==========================================================
 export const EVENTOS_CLIMATICOS = {
     normal: {
@@ -13,7 +14,7 @@ export const EVENTOS_CLIMATICOS = {
         multiplicadorDemanda: 1.0,
         multiplicadorConsumoEnergia: 1.0,
         efeitoTexto: "Operação estável",
-        detalhe: "Semana sem grandes alterações climáticas. Captação e demanda operando no padrão."
+        detalhe: "Semana com temperaturas amenas. A captação do rio e a demanda de água da população permanecem nos níveis normais de operação."
     },
     onda_calor: {
         id: "onda_calor",
@@ -23,7 +24,7 @@ export const EVENTOS_CLIMATICOS = {
         multiplicadorDemanda: 1.25,
         multiplicadorConsumoEnergia: 1.0,
         efeitoTexto: "Demanda de água +25%",
-        detalhe: "Temperaturas extremas farão a população consumir mais água. Suas metas de abastecimento subiram em 25%!"
+        detalhe: "Temperaturas extremas atingem a região. O consumo de água pelas residências e comércios subirá em 25% durante o pico de calor!"
     },
     chuva_forte: {
         id: "chuva_forte",
@@ -32,8 +33,8 @@ export const EVENTOS_CLIMATICOS = {
         multiplicadorVazaoBombas: 1.0,
         multiplicadorDemanda: 1.0,
         multiplicadorConsumoEnergia: 1.50,
-        efeitoTexto: "Tratamento difícil (Custo e Energia +50%)",
-        detalhe: "A turbidez e lama no rio exigem mais produtos químicos e força dos filtros, aumentando os custos de tratamento."
+        efeitoTexto: "+50% no custo de manutenção por hora de chuva",
+        detalhe: "Fortes tempestades trazem detritos para a calha do rio. O desgaste nas bombas exige um custo adicional de +50% de manutenção por hora de chuva."
     },
     seca_severa: {
         id: "seca_severa",
@@ -43,41 +44,41 @@ export const EVENTOS_CLIMATICOS = {
         multiplicadorDemanda: 1.0,
         multiplicadorConsumoEnergia: 1.0,
         efeitoTexto: "Captação reduzida em -30%",
-        detalhe: "A estiagem prolongada baixou o nível do rio. A vazão de captação das bombas d'água caiu em 30%!"
+        detalhe: "A estiagem prolongada reduziu drasticamente o nível do rio Piracicaba. A capacidade de captação das bombas é reduzida em 30%."
     }
 };
 
-let eventoSorteadoSemana = EVENTOS_CLIMATICOS.normal;
 let eventoClimaticoAtual = EVENTOS_CLIMATICOS.normal;
+let climaSorteadoProximaSemana = EVENTOS_CLIMATICOS.normal;
 
 let proximoClimaAgendadoDev = null;
-let ultimaSemanaRegistrada = -1;
+let ultimaSemanaSorteadaDomingo = 0;
+let ultimaSemanaProcessadaSegunda = 0;
 let ultimaHoraRegistrada = -1;
 
-// Controle de Probabilidade do Evento Geral (+3% por hora)
 let eventoAtivoNoMomento = false;
 let probabilidadeInicio = 0; 
 let probabilidadeFim = 0;    
 
-// Elementos Visuais
 let sistemaChuva = null;
 let overlaySecaHTML = null;
 let grupoOndas3D = null;
 let ondas3DMeshes = [];
 let animandoCalor3D = false;
 
-export function getEventoClimaticoAtual() {
-    return eventoClimaticoAtual;
-}
+// Estado da Edição Atual do Jornal
+let edicaoJornalAtual = {
+    semana: 1,
+    titulo: "Edição de Inauguração da ETA",
+    climaPrevisto: EVENTOS_CLIMATICOS.normal
+};
 
-export function getEventoSorteadoSemana() {
-    return eventoSorteadoSemana;
-}
+export function getEventoClimaticoAtual() { return eventoClimaticoAtual; }
+export function getEventoSorteadoSemana() { return eventoClimaticoAtual; }
 
 export function setProximoClima(idClima) {
     if (EVENTOS_CLIMATICOS[idClima]) {
         proximoClimaAgendadoDev = EVENTOS_CLIMATICOS[idClima];
-        console.log(`[CLIMA DEV] Clima forçado para a próxima semana: ${proximoClimaAgendadoDev.nome}`);
     }
 }
 
@@ -85,21 +86,43 @@ export function setupSistemaClima(scene) {
     criarOverlaySecaHTML();
     criarEfeitosParticulas(scene);
     criarOndasCalor3D(scene);
+    setupModalJornalDOM();
+    vincularInteracaoCaixaJornal3D(scene);
 
     registerGameAnimation(scene, (dt) => {
         const data = getDataAtual();
-        const diasTotais = Math.floor(data.getTime() / (1000 * 60 * 60 * 24));
-        const semanaAtual = Math.floor(diasTotais / 7);
+        const diasDecorridos = getDiasDecorridos(data);
+        const semanaAtual = Math.floor(diasDecorridos / 7);
+        const diaDaSemana = data.getDay(); // 0: Domingo, 1: Segunda-Feira...
         const horaAtual = data.getHours();
 
-        if (ultimaSemanaRegistrada !== -1 && semanaAtual > ultimaSemanaRegistrada) {
-            sortearClimaSemanal();
+        // 1. DOMINGO (diaDaSemana === 0): Sorteia a previsão do clima para a próxima semana
+        if (diaDaSemana === 0 && semanaAtual >= ultimaSemanaSorteadaDomingo) {
+            ultimaSemanaSorteadaDomingo = semanaAtual + 1;
+            sortearClimaProximaSemana();
         }
-        ultimaSemanaRegistrada = semanaAtual;
+
+        // 2. SEGUNDA-FEIRA (diaDaSemana === 1): Virada oficial da semana
+        if (diaDaSemana === 1 && semanaAtual > ultimaSemanaProcessadaSegunda) {
+            ultimaSemanaProcessadaSegunda = semanaAtual;
+            
+            // Aplica o clima sorteado
+            eventoClimaticoAtual = climaSorteadoProximaSemana;
+            eventoAtivoNoMomento = false;
+            probabilidadeInicio = 0;
+            probabilidadeFim = 0;
+
+            // Prepara a nova edição do jornal (sem abrir pop-up)
+            edicaoJornalAtual = {
+                semana: semanaAtual + 1,
+                titulo: `Informativo Semanal da Bacia - Semana ${semanaAtual + 1}`,
+                climaPrevisto: eventoClimaticoAtual
+            };
+        }
 
         if (horaAtual !== ultimaHoraRegistrada) {
             ultimaHoraRegistrada = horaAtual;
-            processarCicloHoraClima(scene, diasTotais, horaAtual);
+            processarCicloHoraClima(scene, diaDaSemana, horaAtual);
         }
 
         if (animandoCalor3D) {
@@ -110,154 +133,231 @@ export function setupSistemaClima(scene) {
     aplicarEfeitosVisuaisClima(scene, eventoClimaticoAtual.id);
 }
 
-function sortearClimaSemanal() {
+function sortearClimaProximaSemana() {
     if (proximoClimaAgendadoDev) {
-        eventoSorteadoSemana = proximoClimaAgendadoDev;
+        climaSorteadoProximaSemana = proximoClimaAgendadoDev;
         proximoClimaAgendadoDev = null;
     } else {
         const sorteio = Math.random() * 100;
 
         if (sorteio < 60) {
-            eventoSorteadoSemana = EVENTOS_CLIMATICOS.normal;
+            climaSorteadoProximaSemana = EVENTOS_CLIMATICOS.normal;
         } else if (sorteio < 75) {
-            eventoSorteadoSemana = EVENTOS_CLIMATICOS.chuva_forte;
+            climaSorteadoProximaSemana = EVENTOS_CLIMATICOS.chuva_forte;
         } else if (sorteio < 90) {
-            eventoSorteadoSemana = EVENTOS_CLIMATICOS.onda_calor;
+            climaSorteadoProximaSemana = EVENTOS_CLIMATICOS.onda_calor;
         } else {
-            eventoSorteadoSemana = EVENTOS_CLIMATICOS.seca_severa;
+            climaSorteadoProximaSemana = EVENTOS_CLIMATICOS.seca_severa;
         }
     }
-
-    eventoAtivoNoMomento = false;
-    probabilidadeInicio = 0;
-    probabilidadeFim = 0;
-
-    console.log(`[CLIMA] Sorteio semanal concluído: ${eventoSorteadoSemana.nome}`);
 }
 
-function processarCicloHoraClima(scene, diasTotais, horaAtual) {
-    const diaDaSemana = diasTotais % 7;
-
-    if (diaDaSemana === 6 && horaAtual >= 20) {
-        if (eventoAtivoNoMomento) {
-            desativarEventoAtivo(scene);
-            exibirPopUpAviso(`🌤️ O evento ${eventoSorteadoSemana.nome} encerrou para a virada da semana.`);
-        }
+function processarCicloHoraClima(scene, diaDaSemana, horaAtual) {
+    if (diaDaSemana === 0 && horaAtual >= 20) {
+        if (eventoAtivoNoMomento) desativarEventoAtivo(scene);
         return;
     }
 
-    if (eventoSorteadoSemana.id === "normal") {
-        if (eventoAtivoNoMomento) {
-            desativarEventoAtivo(scene);
-        }
+    if (eventoClimaticoAtual.id === "normal") {
+        if (eventoAtivoNoMomento) desativarEventoAtivo(scene);
         return;
     }
 
     if (!eventoAtivoNoMomento) {
         probabilidadeInicio = Math.min(100, probabilidadeInicio + 3);
-        const rollInicio = Math.random() * 100;
-
-        if (rollInicio < probabilidadeInicio) {
+        if (Math.random() * 100 < probabilidadeInicio) {
             eventoAtivoNoMomento = true;
             probabilidadeFim = 0;
-            eventoClimaticoAtual = eventoSorteadoSemana;
-
             aplicarEfeitosVisuaisClima(scene, eventoClimaticoAtual.id);
-            exibirPopUpAviso(`${eventoClimaticoAtual.icone} Atenção: ${eventoClimaticoAtual.nome} começou! (${eventoClimaticoAtual.efeitoTexto})`);
-            console.log(`[CLIMA] Evento ${eventoClimaticoAtual.nome} iniciado!`);
         }
     } else {
-        probabilidadeFim = Math.min(100, probabilidadeFim + 3);
-        const rollFim = Math.random() * 100;
+        if (eventoClimaticoAtual.id === "chuva_forte") {
+            const qtdBombas = getQuantidadeBombas();
+            const qtdCaixas = getQuantidadeCaixas();
+            const manutencaoSemanaBase = (qtdBombas * CUSTO_MANUTENCAO_ESTRUTURAS.bomba_agua) + (qtdCaixas * CUSTO_MANUTENCAO_ESTRUTURAS.caixa_agua);
+            const manutencaoHoraBase = manutencaoSemanaBase / 168;
+            registrarAdicionalManutencaoChuva(manutencaoHoraBase * 0.50);
+        }
 
-        if (rollFim < probabilidadeFim) {
+        probabilidadeFim = Math.min(100, probabilidadeFim + 3);
+        if (Math.random() * 100 < probabilidadeFim) {
             desativarEventoAtivo(scene);
-            exibirPopUpAviso(`🌤️ O evento ${eventoSorteadoSemana.nome} passou. Clima normalizado.`);
         }
     }
 }
 
 function desativarEventoAtivo(scene) {
     eventoAtivoNoMomento = false;
-    eventoClimaticoAtual = EVENTOS_CLIMATICOS.normal;
     probabilidadeInicio = 0;
     aplicarEfeitosVisuaisClima(scene, EVENTOS_CLIMATICOS.normal.id);
 }
 
 // ==========================================================
-// EFEITOS VISUAIS EXPANDIDOS PARA TODO O CENÁRIO
+// PAINEL DO JORNAL (APENAS VIA CLIQUE NA CAIXA DE CORREIO/JORNAL)
 // ==========================================================
+function setupModalJornalDOM() {
+    if (document.getElementById("modal-jornal-overlay")) return;
+
+    const overlay = document.createElement("div");
+    overlay.id = "modal-jornal-overlay";
+    overlay.style.position = "fixed";
+    overlay.style.top = "0"; overlay.style.left = "0";
+    overlay.style.width = "100vw"; overlay.style.height = "100vh";
+    overlay.style.backgroundColor = "rgba(0, 0, 0, 0.82)";
+    overlay.style.backdropFilter = "blur(6px)";
+    overlay.style.display = "none";
+    overlay.style.justifyContent = "center";
+    overlay.style.alignItems = "center";
+    overlay.style.zIndex = "9999";
+
+    const paper = document.createElement("div");
+    paper.id = "modal-jornal-box";
+    paper.style.backgroundColor = "#fef3c7";
+    paper.style.border = "3px solid #78350f";
+    paper.style.borderRadius = "8px";
+    paper.style.padding = "25px 30px";
+    paper.style.width = "90%";
+    paper.style.maxWidth = "520px";
+    paper.style.color = "#1e1b4b";
+    paper.style.fontFamily = "Georgia, serif";
+    paper.style.boxShadow = "0 20px 40px rgba(0,0,0,0.8)";
+
+    paper.innerHTML = `
+        <div style="text-align: center; border-bottom: 2px solid #78350f; padding-bottom: 10px; margin-bottom: 15px;">
+            <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #92400e; font-weight: bold;">Gazeta da Bacia de Piracicaba</div>
+            <h1 style="margin: 4px 0 0 0; font-size: 26px; font-weight: 900; color: #451a03; text-transform: uppercase;">📰 JORNAL PIRACICABA</h1>
+            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #78350f; margin-top: 6px; font-style: italic;">
+                <span id="jornal-edicao-num">Edição Semanal</span>
+                <span>Distribuição Exclusiva ETA</span>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 18px;">
+            <h2 id="jornal-manchete-titulo" style="font-size: 18px; color: #78350f; margin-top: 0; margin-bottom: 8px; font-weight: bold;">
+                Previsão Meteorológica da Semana
+            </h2>
+            <div style="background-color: rgba(120, 53, 15, 0.08); border-left: 4px solid #78350f; padding: 12px; border-radius: 4px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+                    <span id="jornal-clima-icone" style="font-size: 28px;">🌤️</span>
+                    <strong id="jornal-clima-nome" style="font-size: 16px; color: #451a03;">Clima Ameno & Normal</strong>
+                </div>
+                <div id="jornal-clima-efeito" style="font-size: 12px; font-weight: bold; color: #b45309; margin-bottom: 6px;">
+                    Operação estável
+                </div>
+                <p id="jornal-clima-detalhe" style="font-size: 13px; line-height: 1.4; color: #292524; margin: 0;">
+                    Semana sem grandes alterações climáticas. Captação e demanda operando no padrão.
+                </p>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 20px;">
+            <button id="btn-fechar-jornal" style="
+                background-color: #78350f;
+                color: #fef3c7;
+                border: none;
+                padding: 10px 24px;
+                border-radius: 6px;
+                font-weight: bold;
+                font-size: 14px;
+                cursor: pointer;
+            ">Guardar Jornal</button>
+        </div>
+    `;
+
+    overlay.appendChild(paper);
+    document.body.appendChild(overlay);
+
+    document.getElementById("btn-fechar-jornal").addEventListener("click", () => {
+        overlay.style.display = "none";
+    });
+
+    overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) overlay.style.display = "none";
+    });
+}
+
+export function abrirJornal() {
+    const overlay = document.getElementById("modal-jornal-overlay");
+    if (!overlay) return;
+
+    const clima = edicaoJornalAtual.climaPrevisto || EVENTOS_CLIMATICOS.normal;
+
+    document.getElementById("jornal-edicao-num").innerText = `Edição nº ${edicaoJornalAtual.semana}`;
+    document.getElementById("jornal-manchete-titulo").innerText = edicaoJornalAtual.titulo;
+    document.getElementById("jornal-clima-icone").innerText = clima.icone;
+    document.getElementById("jornal-clima-nome").innerText = clima.nome;
+    document.getElementById("jornal-clima-efeito").innerText = `Impacto Operacional: ${clima.efeitoTexto}`;
+    document.getElementById("jornal-clima-detalhe").innerText = clima.detalhe;
+
+    overlay.style.display = "flex";
+}
+
+function vincularInteracaoCaixaJornal3D(scene) {
+    const nomesPossiveis = ["caixaJornalVisual", "caixaJornalHitbox", "caixaJornal", "caixaDeJornal", "caixaCorreio"];
+
+    nomesPossiveis.forEach(nome => {
+        const mesh = scene.getMeshByName(nome);
+        if (mesh) {
+            mesh.isPickable = true;
+            if (!mesh.actionManager) {
+                mesh.actionManager = new BABYLON.ActionManager(scene);
+            }
+            mesh.actionManager.registerAction(
+                new BABYLON.ExecuteCodeAction(
+                    BABYLON.ActionManager.OnPickTrigger,
+                    () => { abrirJornal(); }
+                )
+            );
+        }
+    });
+}
+
+// EFEITOS VISUAIS
 function criarOverlaySecaHTML() {
     if (document.getElementById("overlay-clima-seca")) return;
-
     overlaySecaHTML = document.createElement("div");
     overlaySecaHTML.id = "overlay-clima-seca";
     overlaySecaHTML.style.position = "fixed";
-    overlaySecaHTML.style.top = "0";
-    overlaySecaHTML.style.left = "0";
-    overlaySecaHTML.style.width = "100vw";
-    overlaySecaHTML.style.height = "100vh";
+    overlaySecaHTML.style.top = "0"; overlaySecaHTML.style.left = "0";
+    overlaySecaHTML.style.width = "100vw"; overlaySecaHTML.style.height = "100vh";
     overlaySecaHTML.style.backgroundColor = "rgba(234, 88, 12, 0.16)";
     overlaySecaHTML.style.mixBlendMode = "color-burn";
     overlaySecaHTML.style.pointerEvents = "none";
     overlaySecaHTML.style.zIndex = "5";
     overlaySecaHTML.style.transition = "opacity 1.5s ease-in-out";
     overlaySecaHTML.style.opacity = "0";
-
     document.body.appendChild(overlaySecaHTML);
 }
 
 function criarOndasCalor3D(scene) {
     if (grupoOndas3D) return;
-
     grupoOndas3D = new BABYLON.TransformNode("grupoOndasCalor3D", scene);
 
-    // Quantidade aumentada para cobrir todo o mapa com boa densidade
     const qtdOndas = 40;
     for (let i = 0; i < qtdOndas; i++) {
         const passos = 30;
         const comprimento = 14 + Math.random() * 12;
         const amplitude = 0.4 + Math.random() * 0.3;
-
         const points = [];
         for (let p = 0; p <= passos; p++) {
-            const x = (p / passos) * comprimento;
-            const y = Math.sin(p * 0.5) * amplitude;
-            points.push(new BABYLON.Vector3(x, y, 0));
+            points.push(new BABYLON.Vector3((p / passos) * comprimento, Math.sin(p * 0.5) * amplitude, 0));
         }
 
-        const linha = BABYLON.MeshBuilder.CreateLines(`onda3D_${i}`, {
-            points: points,
-            updatable: true
-        }, scene);
-
+        const linha = BABYLON.MeshBuilder.CreateLines(`onda3D_${i}`, { points: points, updatable: true }, scene);
         linha.color = BABYLON.Color3.FromHexString("#ef4444");
         linha.alpha = 0.75;
         linha.isPickable = false;
         linha.parent = grupoOndas3D;
 
-        // Distribuição ampla em todo o cenário (X: -110 a 110, Z: -110 a 110, Y: 0.5 a 6.0)
-        const posX = -110 + Math.random() * 220;
-        const posY = 0.5 + Math.random() * 5.5;
-        const posZ = -110 + Math.random() * 220;
-
-        linha.position.set(posX, posY, posZ);
+        linha.position.set(-110 + Math.random() * 220, 0.5 + Math.random() * 5.5, -110 + Math.random() * 220);
         linha.rotation.y = (Math.random() - 0.5) * 0.5;
 
         ondas3DMeshes.push({
-            mesh: linha,
-            comprimento: comprimento,
-            amplitude: amplitude,
-            velocidadeX: 4.0 + Math.random() * 3.0,
-            fase: Math.random() * Math.PI * 2,
-            passos: passos,
-            xMin: -110,
-            xMax: 110,
-            yBase: posY,
-            zBase: posZ
+            mesh: linha, comprimento: comprimento, amplitude: amplitude,
+            velocidadeX: 4.0 + Math.random() * 3.0, fase: Math.random() * Math.PI * 2,
+            passos: passos, xMin: -110, xMax: 110
         });
     }
-
     grupoOndas3D.setEnabled(false);
 }
 
@@ -269,26 +369,17 @@ function atualizarOndasCalor3D(dt) {
             o.mesh.position.z = -110 + Math.random() * 220;
             o.mesh.position.y = 0.5 + Math.random() * 5.5;
         }
-
         o.fase += dt * 4.0;
         const novosPontos = [];
         for (let p = 0; p <= o.passos; p++) {
-            const x = (p / o.passos) * o.comprimento;
-            const y = Math.sin(p * 0.5 + o.fase) * o.amplitude;
-            novosPontos.push(new BABYLON.Vector3(x, y, 0));
+            novosPontos.push(new BABYLON.Vector3((p / o.passos) * o.comprimento, Math.sin(p * 0.5 + o.fase) * o.amplitude, 0));
         }
-
-        BABYLON.MeshBuilder.CreateLines(null, {
-            points: novosPontos,
-            instance: o.mesh
-        });
+        BABYLON.MeshBuilder.CreateLines(null, { points: novosPontos, instance: o.mesh });
     });
 }
 
 function criarEfeitosParticulas(scene) {
-    // Aumento na contagem de partículas para cobrir todo o cenário
     sistemaChuva = new BABYLON.ParticleSystem("chuvaParticulas", 3500, scene);
-    
     const texChuva = new BABYLON.DynamicTexture("texChuvaDrop", { width: 16, height: 64 }, scene, false);
     const ctxC = texChuva.getContext();
     const gradC = ctxC.createLinearGradient(8, 0, 8, 64);
@@ -301,25 +392,20 @@ function criarEfeitosParticulas(scene) {
     texChuva.hasAlpha = true;
 
     sistemaChuva.particleTexture = texChuva;
-    
-    // Caixa de emissão cobrindo toda a extensão do mapa
     sistemaChuva.emitter = new BABYLON.Vector3(0, 32, 0);
     sistemaChuva.minEmitBox = new BABYLON.Vector3(-120, 0, -120);
     sistemaChuva.maxEmitBox = new BABYLON.Vector3(120, 0, 120);
-    
     sistemaChuva.direction1 = new BABYLON.Vector3(-0.5, -30, -0.5);
     sistemaChuva.direction2 = new BABYLON.Vector3(-1.2, -34, -1.2);
     sistemaChuva.minEmitPower = 0.9;
     sistemaChuva.maxEmitPower = 1.4;
-    
     sistemaChuva.minSize = 0.15;
     sistemaChuva.maxSize = 0.35;
     sistemaChuva.minScaleY = 5.0;
     sistemaChuva.maxScaleY = 9.0;
-    
     sistemaChuva.minLifeTime = 0.8;
     sistemaChuva.maxLifeTime = 1.4;
-    sistemaChuva.emitRate = 2400; // Taxa de emissão proporcional ao tamanho do mapa
+    sistemaChuva.emitRate = 2400;
     sistemaChuva.blendMode = BABYLON.ParticleSystem.BLENDMODE_STANDARD;
 }
 
@@ -333,7 +419,6 @@ function aplicarEfeitosVisuaisClima(scene, idClima) {
         if (sistemaChuva) sistemaChuva.start();
         animandoCalor3D = false;
         if (grupoOndas3D) grupoOndas3D.setEnabled(false);
-
         if (luzSol) luzSol.diffuse = BABYLON.Color3.FromHexString("#64748b");
         if (luzHemi) luzHemi.diffuse = BABYLON.Color3.FromHexString("#475569");
         scene.clearColor = new BABYLON.Color4(0.2, 0.23, 0.28, 1.0);
@@ -342,7 +427,6 @@ function aplicarEfeitosVisuaisClima(scene, idClima) {
         if (sistemaChuva) sistemaChuva.stop();
         animandoCalor3D = true;
         if (grupoOndas3D) grupoOndas3D.setEnabled(true);
-
         if (luzSol) luzSol.diffuse = BABYLON.Color3.FromHexString("#fef08a");
         if (luzHemi) luzHemi.diffuse = BABYLON.Color3.FromHexString("#fde047");
         scene.clearColor = new BABYLON.Color4(0.5, 0.6, 0.75, 1.0);
@@ -351,9 +435,7 @@ function aplicarEfeitosVisuaisClima(scene, idClima) {
         if (sistemaChuva) sistemaChuva.stop();
         animandoCalor3D = true;
         if (grupoOndas3D) grupoOndas3D.setEnabled(true);
-
         if (overlaySecaHTML) overlaySecaHTML.style.opacity = "1";
-
         if (luzSol) luzSol.diffuse = BABYLON.Color3.FromHexString("#fdba74");
         if (luzHemi) luzHemi.diffuse = BABYLON.Color3.FromHexString("#fb923c");
         scene.clearColor = new BABYLON.Color4(0.55, 0.45, 0.35, 1.0);
@@ -362,7 +444,6 @@ function aplicarEfeitosVisuaisClima(scene, idClima) {
         if (sistemaChuva) sistemaChuva.stop();
         animandoCalor3D = false;
         if (grupoOndas3D) grupoOndas3D.setEnabled(false);
-
         if (luzSol) luzSol.diffuse = BABYLON.Color3.FromHexString("#ffffff");
         if (luzHemi) luzHemi.diffuse = BABYLON.Color3.FromHexString("#ffffff");
         scene.clearColor = new BABYLON.Color4(0.5, 0.7, 0.9, 1.0);

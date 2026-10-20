@@ -1,4 +1,4 @@
-import { registerGameAnimation, getDataAtual } from './tempo.js';
+import { registerGameAnimation, getDataAtual, getDiasDecorridos } from './tempo.js';
 import { getVazaoAtualHora, getQuantidadeBombas } from './sistema-agua.js';
 import { getConsumoTotalEnergia } from './sistema-energia.js';
 import { getEventoSorteadoSemana } from './clima.js';
@@ -248,9 +248,10 @@ export function setupSistemaJornal(scene) {
             grupoExclamacao.setEnabled(false);
         }
 
+        // ✅ CORRIGIDO: Utiliza o cálculo relativo ao início do jogo (Segunda-Feira)
         const data = getDataAtual();
-        const diasTotais = Math.floor(data.getTime() / (1000 * 60 * 60 * 24));
-        const semanaAtual = Math.floor(diasTotais / 7);
+        const diasDecorridos = getDiasDecorridos(data);
+        const semanaAtual = Math.floor(diasDecorridos / 7);
 
         if (ultimoSemanaRegistrada !== -1 && semanaAtual > ultimoSemanaRegistrada) {
             temJornalNovo = true;

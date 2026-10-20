@@ -4,7 +4,9 @@ import {
     iniciarRelogio, 
     pausarRelogio, 
     despausarRelogio, 
-    setVelocidadeTempo 
+    setVelocidadeTempo,
+    getDataAtual,
+    registerGameAnimation
 } from './tempo.js';
 import { CONFIG_BOMBA_AGUA, CONFIG_CAIXA_AGUA } from './variaveis-importantes.js';
 import { CUSTO_MANUTENCAO_ESTRUTURAS } from './relatorio.js';
@@ -35,6 +37,21 @@ export function setOnItemSelectCallback(callback) {
     onItemSelectCallback = callback;
 }
 
+// Calcula o exato momento da próxima Segunda-Feira às 07:00:00
+function getProximaSegundaFeira7AM(dataAtual) {
+    const d = new Date(dataAtual.getTime());
+    const diaDaSemana = d.getDay(); // Domingo=0, Segunda=1, Terça=2...
+    
+    let diasAteSegunda = (1 - diaDaSemana + 7) % 7;
+    
+    if (diasAteSegunda === 0 && d.getHours() >= 7) {
+        diasAteSegunda = 7;
+    }
+
+    const proximaSegunda = new Date(d.getFullYear(), d.getMonth(), d.getDate() + diasAteSegunda, 7, 0, 0, 0);
+    return proximaSegunda.getTime();
+}
+
 export function setupHUD(scene) {
     const sidebarContainer = document.createElement("div");
     sidebarContainer.id = "hud-sidebar-container";
@@ -47,7 +64,7 @@ export function setupHUD(scene) {
     sidebarContainer.style.zIndex = "10";
     sidebarContainer.style.pointerEvents = "none";
 
-    // 1. HUD Principal de Estatísticas
+    // 1. HUD Principal
     const hudContainer = document.createElement("div");
     hudContainer.id = "game-stats-hud";
     hudContainer.style.backgroundColor = "rgba(15, 20, 25, 0.85)";
@@ -61,7 +78,7 @@ export function setupHUD(scene) {
     hudContainer.style.display = "flex";
     hudContainer.style.flexDirection = "column";
     hudContainer.style.gap = "12px";
-    hudContainer.style.minWidth = "230px";
+    hudContainer.style.minWidth = "250px";
     hudContainer.style.border = "1px solid #334155";
 
     hudContainer.innerHTML = `
@@ -78,7 +95,7 @@ export function setupHUD(scene) {
             <span id="hud-meta" style="font-weight: bold; color: #f87171; display: block; margin-top: 5px;">Pegue um contrato na sede</span>
         </div>
         <div style="margin-top: 2px; padding-top: 10px; border-top: 1px dashed #475569; text-align: center;">
-            🕒 <span id="hud-relogio" style="font-weight: bold; color: #38bdf8; font-size: 15px;">07:00 - 15/10/2026</span>
+            🕒 <span id="hud-relogio" style="font-weight: bold; color: #38bdf8; font-size: 14px;">07:00 - Quinta-Feira - 01/01/2026</span>
         </div>
     `;
 
@@ -92,35 +109,63 @@ export function setupHUD(scene) {
     barraTempo.style.borderRadius = "8px";
     barraTempo.style.padding = "8px 10px";
     barraTempo.style.display = "flex";
-    barraTempo.style.justifyContent = "space-between";
-    barraTempo.style.alignItems = "center";
+    barraTempo.style.flexDirection = "column";
     barraTempo.style.gap = "6px";
     barraTempo.style.boxShadow = "0 4px 8px rgba(0,0,0,0.5)";
     barraTempo.style.pointerEvents = "auto";
+    barraTempo.style.transition = "all 0.3s ease-in-out";
 
     barraTempo.innerHTML = `
-        <button id="btnTempoPause" style="background: #1e293b; color: #f87171; border: 1px solid #334155; border-radius: 6px; padding: 6px 10px; font-weight: bold; cursor: pointer; transition: all 0.2s;" title="Pausar Tempo">⏸️</button>
-        <button id="btnTempoPlay" style="background: #0284c7; color: #fff; border: 1px solid #38bdf8; border-radius: 6px; padding: 6px 10px; font-weight: bold; cursor: pointer; transition: all 0.2s;" title="Retomar Tempo">▶️</button>
-        <button id="btnTempo1x" style="background: #0284c7; color: #fff; border: 1px solid #38bdf8; border-radius: 6px; padding: 6px 10px; font-weight: bold; font-size: 13px; cursor: pointer; transition: all 0.2s;" title="Velocidade Normal (1x)">1x</button>
-        <button id="btnTempo5x" style="background: #1e293b; color: #94a3b8; border: 1px solid #334155; border-radius: 6px; padding: 6px 10px; font-weight: bold; font-size: 13px; cursor: pointer; transition: all 0.2s;" title="Velocidade Rápida (5x)">5x</button>
-        <button id="btnTempo10x" style="background: #1e293b; color: #94a3b8; border: 1px solid #334155; border-radius: 6px; padding: 6px 10px; font-weight: bold; font-size: 13px; cursor: pointer; transition: all 0.2s;" title="Velocidade Ultra Rápida (10x)">10x</button>
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+            <button id="btnTempoPause" style="background: #1e293b; color: #f87171; border: 1px solid #334155; border-radius: 6px; padding: 6px 10px; font-weight: bold; cursor: pointer; transition: all 0.2s;" title="Pausar Tempo">⏸️</button>
+            <button id="btnTempoPlay" style="background: #0284c7; color: #fff; border: 1px solid #38bdf8; border-radius: 6px; padding: 6px 10px; font-weight: bold; cursor: pointer; transition: all 0.2s;" title="Retomar Tempo">▶️</button>
+            <button id="btnTempo1x" style="background: #0284c7; color: #fff; border: 1px solid #38bdf8; border-radius: 6px; padding: 6px 10px; font-weight: bold; font-size: 13px; cursor: pointer; transition: all 0.2s;" title="Velocidade Normal (1x)">1x</button>
+            <button id="btnTempo5x" style="background: #1e293b; color: #94a3b8; border: 1px solid #334155; border-radius: 6px; padding: 6px 10px; font-weight: bold; font-size: 13px; cursor: pointer; transition: all 0.2s;" title="Velocidade Rápida (5x)">5x</button>
+            <button id="btnTempo10x" style="background: #1e293b; color: #94a3b8; border: 1px solid #334155; border-radius: 6px; padding: 6px 10px; font-weight: bold; font-size: 13px; cursor: pointer; transition: all 0.2s;" title="Velocidade Ultra Rápida (10x)">10x</button>
+        </div>
+
+        <div id="container-avancar-semana" style="
+            max-height: 0px;
+            opacity: 0;
+            overflow: hidden;
+            transition: all 0.3s ease-in-out;
+            margin-top: 0px;
+        ">
+            <button id="btnAvancarSemana" style="
+                width: 100%;
+                background-color: #7c3aed;
+                color: #ffffff;
+                border: 1px solid #a855f7;
+                border-radius: 6px;
+                padding: 7px;
+                font-size: 11px;
+                font-weight: bold;
+                cursor: pointer;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                transition: background-color 0.2s;
+            ">⏩ Avançar p/ Próxima Segunda (07h)</button>
+        </div>
     `;
 
     sidebarContainer.appendChild(barraTempo);
     document.body.appendChild(sidebarContainer);
 
-    setupEventosControleTempo(barraTempo);
+    setupEventosControleTempo(barraTempo, scene);
 
     criarModalNomeETA(scene);
     criarMenuConstrucaoHUD();
 }
 
-function setupEventosControleTempo(container) {
+function setupEventosControleTempo(container, scene) {
     const btnPause = container.querySelector("#btnTempoPause");
     const btnPlay = container.querySelector("#btnTempoPlay");
     const btn1x = container.querySelector("#btnTempo1x");
     const btn5x = container.querySelector("#btnTempo5x");
     const btn10x = container.querySelector("#btnTempo10x");
+    
+    const containerAvancar = container.querySelector("#container-avancar-semana");
+    const btnAvancar = container.querySelector("#btnAvancarSemana");
 
     const botoesVelocidade = [btn1x, btn5x, btn10x];
 
@@ -137,8 +182,62 @@ function setupEventosControleTempo(container) {
         }
     }
 
+    container.addEventListener("mouseenter", () => {
+        containerAvancar.style.maxHeight = "40px";
+        containerAvancar.style.opacity = "1";
+        containerAvancar.style.marginTop = "4px";
+    });
+
+    container.addEventListener("mouseleave", () => {
+        containerAvancar.style.maxHeight = "0px";
+        containerAvancar.style.opacity = "0";
+        containerAvancar.style.marginTop = "0px";
+    });
+
+    let alvoAceleracaoMs = null;
+
+    function resetarBotaoAvancar(novaVelocidade = 1) {
+        alvoAceleracaoMs = null;
+        setVelocidadeTempo(novaVelocidade);
+        btnAvancar.innerText = "⏩ Avançar p/ Próxima Segunda (07h)";
+        btnAvancar.style.backgroundColor = "#7c3aed";
+    }
+
+    // Monitor do avanço até o horário alvo
+    registerGameAnimation(scene, () => {
+        if (alvoAceleracaoMs !== null) {
+            if (getDataAtual().getTime() >= alvoAceleracaoMs) {
+                resetarBotaoAvancar(1);
+                destacarVelocidade(btn1x);
+            }
+        }
+    });
+
+    btnAvancar.addEventListener("click", () => {
+        if (alvoAceleracaoMs !== null) return;
+
+        alvoAceleracaoMs = getProximaSegundaFeira7AM(getDataAtual());
+
+        despausarRelogio();
+        setVelocidadeTempo(150);
+
+        btnAvancar.innerText = "⏳ Acelerando...";
+        btnAvancar.style.backgroundColor = "#5b21b6";
+
+        btnPlay.style.backgroundColor = "#0284c7";
+        btnPlay.style.color = "#ffffff";
+        btnPlay.style.borderColor = "#38bdf8";
+
+        btnPause.style.backgroundColor = "#1e293b";
+        btnPause.style.color = "#f87171";
+        btnPause.style.borderColor = "#334155";
+    });
+
+    // Pausar: Cancela o avanço e congela o tempo
     btnPause.addEventListener("click", () => {
+        resetarBotaoAvancar(1);
         pausarRelogio();
+
         btnPause.style.backgroundColor = "#ef4444";
         btnPause.style.color = "#ffffff";
         btnPause.style.borderColor = "#f87171";
@@ -148,8 +247,12 @@ function setupEventosControleTempo(container) {
         btnPlay.style.borderColor = "#334155";
     });
 
+    // Play: Cancela o avanço e retoma no tempo normal 1x
     btnPlay.addEventListener("click", () => {
+        resetarBotaoAvancar(1);
         despausarRelogio();
+        destacarVelocidade(btn1x);
+
         btnPlay.style.backgroundColor = "#0284c7";
         btnPlay.style.color = "#ffffff";
         btnPlay.style.borderColor = "#38bdf8";
@@ -160,21 +263,21 @@ function setupEventosControleTempo(container) {
     });
 
     btn1x.addEventListener("click", () => {
-        setVelocidadeTempo(1);
+        resetarBotaoAvancar(1);
         destacarVelocidade(btn1x);
-        btnPlay.click();
+        despausarRelogio();
     });
 
     btn5x.addEventListener("click", () => {
-        setVelocidadeTempo(5);
+        resetarBotaoAvancar(5);
         destacarVelocidade(btn5x);
-        btnPlay.click();
+        despausarRelogio();
     });
 
     btn10x.addEventListener("click", () => {
-        setVelocidadeTempo(10);
+        resetarBotaoAvancar(10);
         destacarVelocidade(btn10x);
-        btnPlay.click();
+        despausarRelogio();
     });
 }
 
