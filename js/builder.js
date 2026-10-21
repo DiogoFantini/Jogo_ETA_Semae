@@ -147,6 +147,9 @@ export function setupBuildSystem(scene, groundInterno) {
                         const ehZonaAdminF4H4 = (Math.abs(snapLocalZ - 1.5) < 0.1 && snapLocalX <= -4.0 && snapLocalX >= -11.0);
                         const ehZonaAdmin = (snapLocalZ >= -2.0 && snapLocalZ <= 2.0 && snapLocalX <= -4.0 && snapLocalX >= -11.0);
 
+                        // ✅ RESTRIÇÃO BLOQUEANDO PARALELAMENTE À SEDE (X: -6.0 a 1.0, Z: 3.0 a 9.0)
+                        const ehZonaObrasParalela = (snapLocalX >= -6.0 && snapLocalX <= 1.0 && snapLocalZ >= 3.0 && snapLocalZ <= 9.0);
+
                         const ehBeiradaRio = (Math.abs(snapLocalX - 10.5) < 0.1); 
                         const restricaoBombaAgua = (itemSelecionado === "bomba_agua" && !ehBeiradaRio);
 
@@ -156,7 +159,7 @@ export function setupBuildSystem(scene, groundInterno) {
                         const custoAtual = CUSTOS_ESTRUTURAS[itemSelecionado] || 0;
                         const semDinheiro = !podePagar(custoAtual);
 
-                        if (!isDevModeActive() && (!dentroDaAreaX || !dentroDaAreaZ || ehZonaRestritaA1H2 || ehZonaAdminF4H4 || ehZonaAdmin || jaTemPredio || restricaoBombaAgua || limiteAtingido || semDinheiro)) {
+                        if (!isDevModeActive() && (!dentroDaAreaX || !dentroDaAreaZ || ehZonaRestritaA1H2 || ehZonaAdminF4H4 || ehZonaAdmin || ehZonaObrasParalela || jaTemPredio || restricaoBombaAgua || limiteAtingido || semDinheiro)) {
                             cursorConstrucao.material = matCursorInvalido;
                         } else {
                             cursorConstrucao.material = matCursorValido;
@@ -247,7 +250,7 @@ export function setupBuildSystem(scene, groundInterno) {
                             }
                             noRaiz.dispose();
                             
-                            registrarConstrucaoRemovida();
+                            removerConstrucao();
                             if (tipoItem) {
                                 reembolsarDinheiro(tipoItem);
                                 removerEstruturaAgua(tipoItem);

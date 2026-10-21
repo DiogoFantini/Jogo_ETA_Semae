@@ -4,6 +4,7 @@ import { getVazaoAtualHora } from './sistema-agua.js';
 import { getHistoricoRelatorios, registrarEntradaFinanceira, registrarGastoMulta } from './relatorio.js';
 import { getEventoClimaticoAtual } from './clima.js';
 import { atualizarMeta } from './hud.js';
+import { renderizarAbaInvestimentos } from './investimentos.js';
 
 // ==========================================================
 // CONFIGURAÇÕES E LIMITES DE CONTRATOS
@@ -43,19 +44,18 @@ function gerarNovoContrato(dificuldadeForçada) {
     let duracaoSemanas = 0;
     let valorPorM3Semanal = 0;
 
-    // Cálculo do ganho diretamente proporcional à demanda solicitada
     if (dificuldadeForçada === "facil") {
         demandaVazaoHora = entre(12, 25);
         duracaoSemanas = entre(2, 4);
-        valorPorM3Semanal = entre(290, 330); // ~R$ 310 por m³/h de demanda
+        valorPorM3Semanal = entre(290, 330);
     } else if (dificuldadeForçada === "medio") {
         demandaVazaoHora = entre(30, 75);
         duracaoSemanas = entre(4, 8);
-        valorPorM3Semanal = entre(380, 430); // ~R$ 400 por m³/h de demanda
+        valorPorM3Semanal = entre(380, 430);
     } else { // dificil
         demandaVazaoHora = entre(80, 180);
         duracaoSemanas = entre(8, 16);
-        valorPorM3Semanal = entre(480, 540); // ~R$ 500 por m³/h de demanda
+        valorPorM3Semanal = entre(480, 540);
     }
 
     const pagamentoSemanal = Math.round(demandaVazaoHora * valorPorM3Semanal);
@@ -129,7 +129,7 @@ export function setupPainelContratos(scene) {
     painelBox.style.borderRadius = "12px";
     painelBox.style.padding = "25px";
     painelBox.style.width = "90%";
-    painelBox.style.maxWidth = "680px";
+    painelBox.style.maxWidth = "720px";
     painelBox.style.boxShadow = "0 15px 35px rgba(0,0,0,0.8)";
     painelBox.style.fontFamily = "Arial, sans-serif";
     painelBox.style.color = "#ffffff";
@@ -146,9 +146,10 @@ export function setupPainelContratos(scene) {
         </div>
 
         <div style="display: flex; gap: 8px; margin-bottom: 15px; border-bottom: 1px solid #334155; padding-bottom: 10px;">
-            <button id="aba-disponiveis" style="flex: 1; background-color: #0284c7; color: white; border: none; padding: 8px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px;">Disponíveis (${contratosDisponiveis.length})</button>
-            <button id="aba-ativos" style="flex: 1; background-color: #1e293b; color: #94a3b8; border: 1px solid #334155; padding: 8px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px;">Ativos (${contratosAtivos.length}/${MAX_CONTRATOS_ATIVOS})</button>
+            <button id="aba-disponiveis" style="flex: 1; background-color: #0284c7; color: white; border: none; padding: 8px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px;">Contratos disponíveis</button>
+            <button id="aba-ativos" style="flex: 1; background-color: #1e293b; color: #94a3b8; border: 1px solid #334155; padding: 8px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px;">Contratos ativos (${contratosAtivos.length}/${MAX_CONTRATOS_ATIVOS})</button>
             <button id="aba-relatorio" style="flex: 1; background-color: #1e293b; color: #94a3b8; border: 1px solid #334155; padding: 8px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px;">📊 Relatório Mensal</button>
+            <button id="aba-investimentos" style="flex: 1; background-color: #1e293b; color: #94a3b8; border: 1px solid #334155; padding: 8px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px;">📈 Investimentos</button>
         </div>
 
         <div id="lista-contratos-container" style="display: flex; flex-direction: column; gap: 12px; max-height: 350px; overflow-y: auto; padding-right: 5px;"></div>
@@ -164,6 +165,7 @@ export function setupPainelContratos(scene) {
         const btnAbaDisp = document.getElementById("aba-disponiveis");
         const btnAbaAtivos = document.getElementById("aba-ativos");
         const btnAbaRelatorio = document.getElementById("aba-relatorio");
+        const btnAbaInvestimentos = document.getElementById("aba-investimentos");
 
         const clima = getEventoClimaticoAtual();
         const multDemanda = clima ? clima.multiplicadorDemanda : 1.0;
@@ -175,25 +177,33 @@ export function setupPainelContratos(scene) {
         document.getElementById("val-vazao-eta").innerText = `${vazaoAtualETA} m³/h`;
         document.getElementById("val-demanda-contratada").innerText = `${demandaContratadaTotal} m³/h ${multDemanda > 1.0 ? '(🔥 Onda de Calor)' : ''}`;
 
-        btnAbaDisp.innerText = `Disponíveis (${contratosDisponiveis.length})`;
-        btnAbaAtivos.innerText = `Ativos (${contratosAtivos.length}/${MAX_CONTRATOS_ATIVOS})`;
+        btnAbaDisp.innerText = `Contratos disponíveis`;
+        btnAbaAtivos.innerText = `Contratos ativos (${contratosAtivos.length}/${MAX_CONTRATOS_ATIVOS})`;
 
-        [btnAbaDisp, btnAbaAtivos, btnAbaRelatorio].forEach(b => {
-            b.style.backgroundColor = "#1e293b";
-            b.style.color = "#94a3b8";
+        [btnAbaDisp, btnAbaAtivos, btnAbaRelatorio, btnAbaInvestimentos].forEach(b => {
+            if (b) {
+                b.style.backgroundColor = "#1e293b";
+                b.style.color = "#94a3b8";
+            }
         });
 
         if (abaAtual === "disponiveis") btnAbaDisp.style.backgroundColor = "#0284c7", btnAbaDisp.style.color = "#fff";
         else if (abaAtual === "ativos") btnAbaAtivos.style.backgroundColor = "#0284c7", btnAbaAtivos.style.color = "#fff";
-        else btnAbaRelatorio.style.backgroundColor = "#0284c7", btnAbaRelatorio.style.color = "#fff";
+        else if (abaAtual === "relatorio") btnAbaRelatorio.style.backgroundColor = "#0284c7", btnAbaRelatorio.style.color = "#fff";
+        else if (abaAtual === "investimentos") btnAbaInvestimentos.style.backgroundColor = "#0284c7", btnAbaInvestimentos.style.color = "#fff";
 
         container.innerHTML = "";
+
+        if (abaAtual === "investimentos") {
+            renderizarAbaInvestimentos(container);
+            return;
+        }
 
         if (abaAtual === "relatorio") {
             const relatorios = getHistoricoRelatorios();
 
             if (relatorios.length === 0) {
-                container.innerHTML = `<div style="text-align: center; color: #64748b; padding: 30px; font-size: 14px;">Ainda não há relatórios semanais fechados. Complete a primeira semana de operação!</div>`;
+                container.innerHTML = `<div style="text-align: center; color: #64748b; padding: 30px; font-size: 14px;">Ainda não há relatorios semanais fechados. Complete a primeira semana de operação!</div>`;
                 return;
             }
 
@@ -346,6 +356,7 @@ export function setupPainelContratos(scene) {
     document.getElementById("aba-disponiveis").addEventListener("click", () => { abaAtual = "disponiveis"; renderizarLista(); });
     document.getElementById("aba-ativos").addEventListener("click", () => { abaAtual = "ativos"; renderizarLista(); });
     document.getElementById("aba-relatorio").addEventListener("click", () => { abaAtual = "relatorio"; renderizarLista(); });
+    document.getElementById("aba-investimentos").addEventListener("click", () => { abaAtual = "investimentos"; renderizarLista(); });
 
     document.getElementById("btn-fechar-contratos").addEventListener("click", () => { painelOverlay.style.display = "none"; });
     painelOverlay.addEventListener("click", (e) => { if (e.target === painelOverlay) painelOverlay.style.display = "none"; });
@@ -419,7 +430,7 @@ export function setupPainelContratos(scene) {
                 atualizarMetaHUDContratos();
                 if (painelOverlay.style.display === "flex") renderizarLista();
             }
-        } else if (ultimoDiaSemana === -1) {
+        } else if (ultimoDiaSemana !== -1) {
             ultimoDiaSemana = diaAtual;
         }
 

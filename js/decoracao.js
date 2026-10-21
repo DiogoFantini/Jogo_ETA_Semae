@@ -1,3 +1,5 @@
+import { createSetorTI } from './setorTI.js';
+
 export function createDecorations(scene) {
     const centroX = -2.5;
     const centroZ = -1.5;
@@ -186,7 +188,12 @@ export function createDecorations(scene) {
     window.atualizarPlacaETA = desenharPlaca;
 
     // ==========================================================
-    // 5. DECORAÇÃO NATURAL (DISTRIBUIÇÃO AMPLA SEM COLISÃO)
+    // 5. SETOR DE TECNOLOGIA E INOVAÇÃO (MÓDULO SEPARADO)
+    // ==========================================================
+    createSetorTI(scene, -2.5, 6.0);
+
+    // ==========================================================
+    // 6. DECORAÇÃO NATURAL (DISTRIBUIÇÃO AMPLA SEM COLISÃO)
     // ==========================================================
     let semente = 421015;
     const rng = () => {
@@ -294,26 +301,14 @@ export function createDecorations(scene) {
         addGroupNat(petala, matFlor);
     };
 
-    // VALIDAÇÃO DE POSIÇÃO (EVITA RUA, DENTRO DA ETA, RIO E SEGREGA ÁRVORES)
+    // VALIDAÇÃO DE POSIÇÃO
     const dentroDaZonaPermitida = (x, z) => {
-        // 1. Área Muros da ETA
         if (x >= -8.5 && x <= 18.0 && z >= -11.0 && z <= 11.0) return false;
-
-        // 2. Estacionamento da ETA
         if (x >= 3.0 && x <= 17.5 && z >= -11.0 && z <= -2.5) return false;
-
-        // 3. Rua de Acesso da Entrada (Rua que vai do Portão para o lado direito)
         if (x >= 3.0 && x <= 7.0 && z < -10.0) return false;
-
-        // 4. Leito do Rio (Calha de Água)
         if (x >= 17.5 && x <= 32.5) return false;
-
-        // 5. Cidade / Background ao Fundo
         if (z < -22.0) return false;
-
-        // 6. Limite do Terreno
         if (x < -60.0 || x > 60.0 || z > 65.0) return false;
-
         return true;
     };
 
@@ -322,7 +317,6 @@ export function createDecorations(scene) {
     };
 
     const gerarVegetacaoExterna = () => {
-        // Gerador de Árvores com Distanciamento Mínimo
         let tentativasArvore = 0;
         while (posicoesArvores.length < 80 && tentativasArvore < 400) {
             tentativasArvore++;
@@ -334,21 +328,18 @@ export function createDecorations(scene) {
             }
         }
 
-        // Pedras
         for (let i = 0; i < 90; i++) {
             const x = entre(-55, 55);
             const z = entre(-20, 60);
             if (dentroDaZonaPermitida(x, z)) criarPedraNat(x, z);
         }
 
-        // Tufos de Matinho
         for (let i = 0; i < 200; i++) {
             const x = entre(-55, 55);
             const z = entre(-20, 60);
             if (dentroDaZonaPermitida(x, z)) criarTufoMatinho(x, z);
         }
 
-        // Flores
         for (let i = 0; i < 150; i++) {
             const x = entre(-55, 55);
             const z = entre(-20, 60);
