@@ -114,8 +114,8 @@ export function setupSistemaJornal(scene) {
         let painelComunidadeHTML = "";
 
         if (!primeiraEdicaoVista) {
-            manchete = "NOVO GESTOR ASSUME O COMANDO DA ESTAÇÃO DE TRATAMENTO DE ÁGUA!";
-            artigoOpiniao = "A administração local confirmou hoje a nomeação do novo representante responsável por gerenciar as operações da ETA. A população e os setores da cidade acompanham com grande expectativa o início dos trabalhos, aguardando investimentos em infraestrutura, estabilidade no fornecimento e gestão eficiente do saneamento. Desejamos uma excelente gestão ao novo diretor!";
+            manchete = "NOVO(A) GESTOR(A) ASSUME O COMANDO DA ESTAÇÃO DE TRATAMENTO DE ÁGUA!";
+            artigoOpiniao = "A administração local confirmou hoje a nomeação do(a) novo(a) representante responsável por gerenciar as operações da ETA. A população e os setores da cidade acompanham com grande expectativa o início dos trabalhos, aguardando investimentos em infraestrutura, estabilidade no fornecimento e gestão eficiente do saneamento. Desejamos uma excelente gestão ao(à) novo(a) gestor(a)!";
             
             painelComunidadeHTML = `
                 <div style="font-size: 12px; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #999; padding-bottom: 4px; margin-bottom: 8px;">
@@ -248,7 +248,6 @@ export function setupSistemaJornal(scene) {
             grupoExclamacao.setEnabled(false);
         }
 
-        // ✅ CORRIGIDO: Utiliza o cálculo relativo ao início do jogo (Segunda-Feira)
         const data = getDataAtual();
         const diasDecorridos = getDiasDecorridos(data);
         const semanaAtual = Math.floor(diasDecorridos / 7);

@@ -41,22 +41,24 @@ function gerarNovoContrato(dificuldadeForçada) {
 
     let demandaVazaoHora = 0;
     let duracaoSemanas = 0;
-    let pagamentoSemanal = 0;
+    let valorPorM3Semanal = 0;
 
+    // Cálculo do ganho diretamente proporcional à demanda solicitada
     if (dificuldadeForçada === "facil") {
         demandaVazaoHora = entre(12, 25);
         duracaoSemanas = entre(2, 4);
-        pagamentoSemanal = entre(4000, 9000);
+        valorPorM3Semanal = entre(290, 330); // ~R$ 310 por m³/h de demanda
     } else if (dificuldadeForçada === "medio") {
         demandaVazaoHora = entre(30, 75);
         duracaoSemanas = entre(4, 8);
-        pagamentoSemanal = entre(15000, 32000);
+        valorPorM3Semanal = entre(380, 430); // ~R$ 400 por m³/h de demanda
     } else { // dificil
         demandaVazaoHora = entre(80, 180);
         duracaoSemanas = entre(8, 16);
-        pagamentoSemanal = entre(45000, 95000);
+        valorPorM3Semanal = entre(480, 540); // ~R$ 500 por m³/h de demanda
     }
 
+    const pagamentoSemanal = Math.round(demandaVazaoHora * valorPorM3Semanal);
     const valorTotalFinal = pagamentoSemanal * duracaoSemanas;
 
     return {
