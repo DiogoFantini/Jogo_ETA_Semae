@@ -430,13 +430,13 @@ export function setupPainelContratos(scene) {
                 atualizarMetaHUDContratos();
                 if (painelOverlay.style.display === "flex") renderizarLista();
             }
-        } else if (ultimoDiaSemana !== -1) {
+        } else if (ultimoDiaSemana === -1) { // CORRIGIDO: de !== -1 para === -1
             ultimoDiaSemana = diaAtual;
         }
 
         atualizarMetaHUDContratos();
     });
-
+    
     const predioVisual = scene.getMeshByName("centroAdministrativoVisual");
     const hitbox = scene.getMeshByName("centroAdminHitbox");
 

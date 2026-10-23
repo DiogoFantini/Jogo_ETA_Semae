@@ -1,7 +1,6 @@
 import { setupCamera } from './camera.js';
 import { setupBuildSystem } from './builder.js';
 import { createBackground } from './Modelos 3D/background.js';
-import { createDecorations } from './Modelos 3D/decoracao.js';
 import { setupHUD } from './hud.js';
 import { setupIluminacao } from './iluminacao.js';
 import { iniciarSistemaAgua } from './sistema-agua.js';
@@ -9,6 +8,7 @@ import { setupPainelContratos } from './contratos.js';
 import { setupSistemaJornal } from './jornal.js';
 import { setupSistemaClima } from './clima.js';
 import { setupSistemaRelatorio } from './relatorio.js';
+import { createDecorations } from './Modelos 3D/decoracao.js';
 
 export function createScene(engine, canvas) {
     const scene = new BABYLON.Scene(engine);
@@ -79,12 +79,9 @@ export function createScene(engine, canvas) {
     // ==========================================================
     // 4. MAPA PRINCIPAL (Grama Externa e Asfalto da ETA)
     // ==========================================================
-    const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 150, height: 150 }, scene);
+    // O tamanho foi ajustado de 150 para 100 e a textura é aplicada diretamente por natureza.js
+    const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 100, height: 100 }, scene);
     ground.position.y = 0.01; 
-    const matGramaNormal = new BABYLON.StandardMaterial("matGramaNormal", scene);
-    matGramaNormal.diffuseColor = BABYLON.Color3.FromHexString("#339933");
-    matGramaNormal.specularColor = BABYLON.Color3.FromHexString("#0D0D0D");
-    ground.material = matGramaNormal;
     ground.physicsImpostor = new BABYLON.PhysicsImpostor(ground, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 0, friction: 1 }, scene);
 
     const asfalto = BABYLON.MeshBuilder.CreateGround("asfalto", { width: 25, height: 20 }, scene);
@@ -128,10 +125,9 @@ export function createScene(engine, canvas) {
     portaoDir.physicsImpostor = new BABYLON.PhysicsImpostor(portaoDir, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 0 }, scene);
 
     // ==========================================================
-    // 6. MÓDULOS EXTERNOS (BACKGROUND E DECORAÇÃO)
+    // 6. MÓDULOS EXTERNOS (BACKGROUND ORQUESTRADO)
     // ==========================================================
     createBackground(scene);
-    createDecorations(scene);
 
     // ==========================================================
     // 7. SISTEMAS DE GAMEPLAY
@@ -143,6 +139,8 @@ export function createScene(engine, canvas) {
     setupSistemaJornal(scene);
     setupSistemaClima(scene);
     setupSistemaRelatorio(scene);
+    createBackground(scene);
+    createDecorations(scene);
 
     return scene;
 }

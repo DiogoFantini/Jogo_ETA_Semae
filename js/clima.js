@@ -1,6 +1,7 @@
 import { registerGameAnimation, getDataAtual, getDiasDecorridos } from './tempo.js';
 import { getQuantidadeBombas, getQuantidadeCaixas } from './sistema-agua.js';
 import { CUSTO_MANUTENCAO_ESTRUTURAS, registrarAdicionalManutencaoChuva } from './relatorio.js';
+import { exibirPopUpAviso } from './condicoes.js';
 
 // ==========================================================
 // CONFIGURAÇÃO DOS EVENTOS CLIMÁTICOS
@@ -50,10 +51,10 @@ export const EVENTOS_CLIMATICOS = {
 
 let eventoClimaticoAtual = EVENTOS_CLIMATICOS.normal;
 let climaSorteadoProximaSemana = EVENTOS_CLIMATICOS.normal;
-
 let proximoClimaAgendadoDev = null;
-let ultimaSemanaSorteadaDomingo = 0;
-let ultimaSemanaProcessadaSegunda = 0;
+
+let ultimaSegundaIniciada = -1;
+let ultimoDomingoEncerrado = -1;
 let ultimaHoraRegistrada = -1;
 
 let eventoAtivoNoMomento = false;
@@ -66,7 +67,6 @@ let grupoOndas3D = null;
 let ondas3DMeshes = [];
 let animandoCalor3D = false;
 
-// Estado da Edição Atual do Jornal
 let edicaoJornalAtual = {
     semana: 1,
     titulo: "Edição de Inauguração da ETA",
@@ -92,37 +92,51 @@ export function setupSistemaClima(scene) {
     registerGameAnimation(scene, (dt) => {
         const data = getDataAtual();
         const diasDecorridos = getDiasDecorridos(data);
-        const semanaAtual = Math.floor(diasDecorridos / 7);
-        const diaDaSemana = data.getDay(); // 0: Domingo, 1: Segunda-Feira...
+        const diaDaSemana = data.getDay(); // 0 = Domingo, 1 = Segunda
         const horaAtual = data.getHours();
-
-        // 1. DOMINGO (diaDaSemana === 0): Sorteia a previsão do clima para a próxima semana
-        if (diaDaSemana === 0 && semanaAtual >= ultimaSemanaSorteadaDomingo) {
-            ultimaSemanaSorteadaDomingo = semanaAtual + 1;
-            sortearClimaProximaSemana();
-        }
-
-        // 2. SEGUNDA-FEIRA (diaDaSemana === 1): Virada oficial da semana
-        if (diaDaSemana === 1 && semanaAtual > ultimaSemanaProcessadaSegunda) {
-            ultimaSemanaProcessadaSegunda = semanaAtual;
-            
-            // Aplica o clima sorteado
-            eventoClimaticoAtual = climaSorteadoProximaSemana;
-            eventoAtivoNoMomento = false;
-            probabilidadeInicio = 0;
-            probabilidadeFim = 0;
-
-            // Prepara a nova edição do jornal (sem abrir pop-up)
-            edicaoJornalAtual = {
-                semana: semanaAtual + 1,
-                titulo: `Informativo Semanal da Bacia - Semana ${semanaAtual + 1}`,
-                climaPrevisto: eventoClimaticoAtual
-            };
-        }
 
         if (horaAtual !== ultimaHoraRegistrada) {
             ultimaHoraRegistrada = horaAtual;
-            processarCicloHoraClima(scene, diaDaSemana, horaAtual);
+
+            // 1. INÍCIO DA SEMANA (Segunda-Feira 00:00)
+            if (diaDaSemana === 1 && horaAtual === 0 && ultimaSegundaIniciada !== diasDecorridos) {
+                ultimaSegundaIniciada = diasDecorridos;
+                
+                sortearClimaProximaSemana();
+                eventoClimaticoAtual = climaSorteadoProximaSemana;
+                
+                eventoAtivoNoMomento = false;
+                probabilidadeInicio = 0;
+                probabilidadeFim = 0;
+
+                const semanaEdicao = Math.floor(diasDecorridos / 7) + 1; 
+                edicaoJornalAtual = {
+                    semana: semanaEdicao,
+                    titulo: `Informativo Semanal da Bacia - Semana ${semanaEdicao}`,
+                    climaPrevisto: eventoClimaticoAtual
+                };
+
+                aplicarEfeitosVisuaisClima(scene, EVENTOS_CLIMATICOS.normal.id);
+            }
+            
+            // 2. ENCERRAMENTO FORÇADO DA SEMANA (Domingo 23:00)
+            if (diaDaSemana === 0 && horaAtual === 23 && ultimoDomingoEncerrado !== diasDecorridos) {
+                ultimoDomingoEncerrado = diasDecorridos;
+
+                if (eventoAtivoNoMomento) {
+                    exibirPopUpAviso(`🌤️ O evento climático da semana se encerrou definitivamente.`);
+                    eventoAtivoNoMomento = false;
+                    aplicarEfeitosVisuaisClima(scene, EVENTOS_CLIMATICOS.normal.id);
+                }
+                
+                // Força o clima normal para evitar acionamentos de última hora
+                eventoClimaticoAtual = EVENTOS_CLIMATICOS.normal; 
+                probabilidadeInicio = 0;
+                probabilidadeFim = 0;
+            } else {
+                // 3. LOOP NORMAL DE PROBABILIDADES
+                processarCicloHoraClima(scene);
+            }
         }
 
         if (animandoCalor3D) {
@@ -130,7 +144,7 @@ export function setupSistemaClima(scene) {
         }
     });
 
-    aplicarEfeitosVisuaisClima(scene, eventoClimaticoAtual.id);
+    aplicarEfeitosVisuaisClima(scene, EVENTOS_CLIMATICOS.normal.id);
 }
 
 function sortearClimaProximaSemana() {
@@ -139,38 +153,28 @@ function sortearClimaProximaSemana() {
         proximoClimaAgendadoDev = null;
     } else {
         const sorteio = Math.random() * 100;
-
-        if (sorteio < 60) {
-            climaSorteadoProximaSemana = EVENTOS_CLIMATICOS.normal;
-        } else if (sorteio < 75) {
-            climaSorteadoProximaSemana = EVENTOS_CLIMATICOS.chuva_forte;
-        } else if (sorteio < 90) {
-            climaSorteadoProximaSemana = EVENTOS_CLIMATICOS.onda_calor;
-        } else {
-            climaSorteadoProximaSemana = EVENTOS_CLIMATICOS.seca_severa;
-        }
+        if (sorteio < 60) climaSorteadoProximaSemana = EVENTOS_CLIMATICOS.normal;
+        else if (sorteio < 75) climaSorteadoProximaSemana = EVENTOS_CLIMATICOS.chuva_forte;
+        else if (sorteio < 90) climaSorteadoProximaSemana = EVENTOS_CLIMATICOS.onda_calor;
+        else climaSorteadoProximaSemana = EVENTOS_CLIMATICOS.seca_severa;
     }
 }
 
-function processarCicloHoraClima(scene, diaDaSemana, horaAtual) {
-    if (diaDaSemana === 0 && horaAtual >= 20) {
-        if (eventoAtivoNoMomento) desativarEventoAtivo(scene);
-        return;
-    }
-
-    if (eventoClimaticoAtual.id === "normal") {
-        if (eventoAtivoNoMomento) desativarEventoAtivo(scene);
-        return;
-    }
+function processarCicloHoraClima(scene) {
+    if (eventoClimaticoAtual.id === "normal") return;
 
     if (!eventoAtivoNoMomento) {
-        probabilidadeInicio = Math.min(100, probabilidadeInicio + 3);
+        probabilidadeInicio += 1;
+        
         if (Math.random() * 100 < probabilidadeInicio) {
             eventoAtivoNoMomento = true;
+            probabilidadeInicio = 0; 
             probabilidadeFim = 0;
             aplicarEfeitosVisuaisClima(scene, eventoClimaticoAtual.id);
+            exibirPopUpAviso(`⚠️ Evento climático iniciado: ${eventoClimaticoAtual.nome}! (${eventoClimaticoAtual.efeitoTexto})`);
         }
     } else {
+        // Aplica os efeitos negativos hora a hora
         if (eventoClimaticoAtual.id === "chuva_forte") {
             const qtdBombas = getQuantidadeBombas();
             const qtdCaixas = getQuantidadeCaixas();
@@ -179,21 +183,20 @@ function processarCicloHoraClima(scene, diaDaSemana, horaAtual) {
             registrarAdicionalManutencaoChuva(manutencaoHoraBase * 0.50);
         }
 
-        probabilidadeFim = Math.min(100, probabilidadeFim + 3);
+        probabilidadeFim += 1;
+        
         if (Math.random() * 100 < probabilidadeFim) {
-            desativarEventoAtivo(scene);
+            eventoAtivoNoMomento = false;
+            probabilidadeInicio = 0; 
+            probabilidadeFim = 0; 
+            aplicarEfeitosVisuaisClima(scene, EVENTOS_CLIMATICOS.normal.id);
+            exibirPopUpAviso(`🌤️ O evento climático (${eventoClimaticoAtual.nome}) deu uma trégua.`);
         }
     }
 }
 
-function desativarEventoAtivo(scene) {
-    eventoAtivoNoMomento = false;
-    probabilidadeInicio = 0;
-    aplicarEfeitosVisuaisClima(scene, EVENTOS_CLIMATICOS.normal.id);
-}
-
 // ==========================================================
-// PAINEL DO JORNAL (APENAS VIA CLIQUE NA CAIXA DE CORREIO/JORNAL)
+// PAINEL DO JORNAL E EFEITOS VISUAIS
 // ==========================================================
 function setupModalJornalDOM() {
     if (document.getElementById("modal-jornal-overlay")) return;
@@ -312,7 +315,6 @@ function vincularInteracaoCaixaJornal3D(scene) {
     });
 }
 
-// EFEITOS VISUAIS
 function criarOverlaySecaHTML() {
     if (document.getElementById("overlay-clima-seca")) return;
     overlaySecaHTML = document.createElement("div");
