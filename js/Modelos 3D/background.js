@@ -1,5 +1,5 @@
 import { createRio } from './rio.js';
-import { getDataAtual, registerGameAnimation } from './tempo.js';
+import { getDataAtual, registerGameAnimation } from '../tempo.js';
 
 export function createBackground(scene) {
     // 1. RIO ANIMADO (MÓDULO INDEPENDENTE)

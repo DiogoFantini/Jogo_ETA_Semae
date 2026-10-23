@@ -3,7 +3,7 @@
 // Integrado com o sistema de tempo e pause via registerGameAnimation
 // ============================================================================
 
-import { registerGameAnimation } from './tempo.js';
+import { registerGameAnimation } from '../tempo.js';
 
 export function createRio(scene) {
     // ------------------------------------------------------------------

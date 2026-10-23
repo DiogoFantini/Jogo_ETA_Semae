@@ -603,3 +603,52 @@ export function atualizarMeta(statusTexto, completada = false) {
         el.style.color = completada ? "#4ade80" : "#f87171"; 
     }
 }
+
+export function abrirModalSetorTI() {
+    const modalExistente = document.getElementById("modalSetorTI");
+    if (modalExistente) modalExistente.remove();
+
+    const containerModal = document.createElement("div");
+    containerModal.id = "modalSetorTI";
+    containerModal.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 600px;
+        max-width: 90vw;
+        background: #0f172a;
+        border: 2px solid #38bdf8;
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.7);
+        z-index: 1000;
+        color: #ffffff;
+        font-family: Arial, sans-serif;
+        overflow: hidden;
+    `;
+
+    containerModal.innerHTML = `
+        <div style="background: #1e293b; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155;">
+            <h2 style="margin: 0; font-size: 20px; color: #38bdf8;">Setor de Tecnologia e Inovação</h2>
+            <button id="fecharModalTI" style="background: transparent; border: none; color: #94a3b8; font-size: 24px; cursor: pointer;">&times;</button>
+        </div>
+
+        <div style="display: flex; background: #0f172a; border-bottom: 1px solid #334155;">
+            <button style="padding: 12px 24px; background: #1e293b; color: #38bdf8; border: none; border-bottom: 3px solid #38bdf8; font-weight: bold; cursor: pointer;">
+                Menu de pesquisas
+            </button>
+        </div>
+
+        <div style="padding: 24px; min-height: 200px;">
+            <p style="color: #94a3b8; font-size: 15px; margin: 0;">
+                Bem-vindo ao centro de P&D da ETA. Aqui você poderá pesquisar novas tecnologias de tratamento de água e automação.
+            </p>
+        </div>
+    `;
+
+    document.body.appendChild(containerModal);
+
+    document.getElementById("fecharModalTI").onclick = () => {
+        containerModal.remove();
+    };
+}

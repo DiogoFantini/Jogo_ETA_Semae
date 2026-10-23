@@ -1,6 +1,6 @@
 import { toggleMenuConstrucao, itemSelecionado, setOnItemSelectCallback } from './hud.js';
-import { createBombaAgua } from './bomba-agua.js';
-import { createCaixaAgua } from './caixa-agua.js';
+import { createBombaAgua } from './Modelos 3D/bomba-agua.js';
+import { createCaixaAgua } from './Modelos 3D/caixa-agua.js';
 import { 
     isDevModeActive, 
     registrarCliqueConstruir, 

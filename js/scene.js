@@ -1,7 +1,7 @@
 import { setupCamera } from './camera.js';
 import { setupBuildSystem } from './builder.js';
-import { createBackground } from './background.js';
-import { createDecorations } from './decoracao.js';
+import { createBackground } from './Modelos 3D/background.js';
+import { createDecorations } from './Modelos 3D/decoracao.js';
 import { setupHUD } from './hud.js';
 import { setupIluminacao } from './iluminacao.js';
 import { iniciarSistemaAgua } from './sistema-agua.js';
