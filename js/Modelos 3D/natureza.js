@@ -14,7 +14,7 @@
 // Uso: createNatureza(scene)  — chamar depois do "ground" existir (scene.js).
 // ============================================================================
 
-export function createNatureza(scene) {
+export function createNatureza(scene, ground) {
     // ------------------------------------------------------------------
     // UTILITÁRIOS
     // ------------------------------------------------------------------
@@ -135,17 +135,9 @@ export function createNatureza(scene) {
         }
     }, true);
     texGrama.anisotropicFilteringLevel = 8;
-
-    // Aplica no ground do scene.js (mantém o mesmo material, só troca o visual)
-// Aplica no ground do scene.js (se não tiver material, cria um novo)
-    let ground = scene.getMeshByName("ground");
-    if (!ground) {
-        ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 100, height: 100 }, scene);
-        ground.position.y = 0.01;
-    }
     
     // Garante que o ground tenha um material atribuído antes de aplicar a textura
-    if (!ground.material) {
+if (!ground.material) {
         ground.material = new BABYLON.StandardMaterial("matGramaNatureza", scene);
     }
 

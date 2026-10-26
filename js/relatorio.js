@@ -102,3 +102,12 @@ function fecharEGerarRelatorioSemanal(numSemana) {
 function exibirAvisoRelatorioDisponivel() {
     exibirPopUpAviso("📊 Relatório mensal disponível na Sede");
 }
+
+window.addEventListener("DANO_CHUVA", () => {
+    const qtdBombas = getQuantidadeBombas();
+    const qtdCaixas = getQuantidadeCaixas();
+    const manutencaoSemanaBase = (qtdBombas * CUSTO_MANUTENCAO_ESTRUTURAS.bomba_agua) + (qtdCaixas * CUSTO_MANUTENCAO_ESTRUTURAS.caixa_agua);
+    const manutencaoHoraBase = manutencaoSemanaBase / 168;
+    
+    registrarAdicionalManutencaoChuva(manutencaoHoraBase * 0.50);
+});

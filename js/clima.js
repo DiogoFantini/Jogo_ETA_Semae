@@ -1,6 +1,4 @@
 import { registerGameAnimation, getDataAtual, getDiasDecorridos } from './tempo.js';
-import { getQuantidadeBombas, getQuantidadeCaixas } from './sistema-agua.js';
-import { CUSTO_MANUTENCAO_ESTRUTURAS, registrarAdicionalManutencaoChuva } from './relatorio.js';
 import { exibirPopUpAviso } from './condicoes.js';
 
 // ==========================================================
@@ -87,7 +85,6 @@ export function setupSistemaClima(scene) {
     criarEfeitosParticulas(scene);
     criarOndasCalor3D(scene);
     setupModalJornalDOM();
-    vincularInteracaoCaixaJornal3D(scene);
 
     registerGameAnimation(scene, (dt) => {
         const data = getDataAtual();
@@ -176,11 +173,7 @@ function processarCicloHoraClima(scene) {
     } else {
         // Aplica os efeitos negativos hora a hora
         if (eventoClimaticoAtual.id === "chuva_forte") {
-            const qtdBombas = getQuantidadeBombas();
-            const qtdCaixas = getQuantidadeCaixas();
-            const manutencaoSemanaBase = (qtdBombas * CUSTO_MANUTENCAO_ESTRUTURAS.bomba_agua) + (qtdCaixas * CUSTO_MANUTENCAO_ESTRUTURAS.caixa_agua);
-            const manutencaoHoraBase = manutencaoSemanaBase / 168;
-            registrarAdicionalManutencaoChuva(manutencaoHoraBase * 0.50);
+            window.dispatchEvent(new CustomEvent("DANO_CHUVA"));
         }
 
         probabilidadeFim += 1;
@@ -293,26 +286,6 @@ export function abrirJornal() {
     document.getElementById("jornal-clima-detalhe").innerText = clima.detalhe;
 
     overlay.style.display = "flex";
-}
-
-function vincularInteracaoCaixaJornal3D(scene) {
-    const nomesPossiveis = ["caixaJornalVisual", "caixaJornalHitbox", "caixaJornal", "caixaDeJornal", "caixaCorreio"];
-
-    nomesPossiveis.forEach(nome => {
-        const mesh = scene.getMeshByName(nome);
-        if (mesh) {
-            mesh.isPickable = true;
-            if (!mesh.actionManager) {
-                mesh.actionManager = new BABYLON.ActionManager(scene);
-            }
-            mesh.actionManager.registerAction(
-                new BABYLON.ExecuteCodeAction(
-                    BABYLON.ActionManager.OnPickTrigger,
-                    () => { abrirJornal(); }
-                )
-            );
-        }
-    });
 }
 
 function criarOverlaySecaHTML() {

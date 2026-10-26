@@ -125,21 +125,16 @@ export function createScene(engine, canvas) {
     portaoDir.physicsImpostor = new BABYLON.PhysicsImpostor(portaoDir, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 0 }, scene);
 
     // ==========================================================
-    // 6. MÓDULOS EXTERNOS (BACKGROUND ORQUESTRADO)
-    // ==========================================================
-    createBackground(scene);
-
-    // ==========================================================
     // 7. SISTEMAS DE GAMEPLAY
     // ==========================================================
     setupBuildSystem(scene, asfalto);
     setupHUD(scene);
     iniciarSistemaAgua(scene);
-    setupPainelContratos(scene);
+    setupPainelContratos(scene, predioVisual, centroAdminHitbox);
     setupSistemaJornal(scene);
     setupSistemaClima(scene);
     setupSistemaRelatorio(scene);
-    createBackground(scene);
+    createBackground(scene, ground);
     createDecorations(scene);
 
     return scene;

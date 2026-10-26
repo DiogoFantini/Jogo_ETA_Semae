@@ -23,6 +23,32 @@ import { adicionarEstruturaAgua, removerEstruturaAgua } from './sistema-agua.js'
 import { adicionarConsumoEstrutura, removerConsumoEstrutura } from './sistema-energia.js';
 import { registrarGastoConstrucao } from './relatorio.js';
 
+// Função auxiliar isolada para validar as regras de posicionamento da construção
+function validarPosicaoConstrucao(snapLocalX, snapLocalZ, margemPredio, itemSelecionado, scene, groundInterno) {
+    const asfaltoPosX = groundInterno.position.x;
+    const asfaltoPosZ = groundInterno.position.z;
+
+    const dentroDaAreaX = (snapLocalX - margemPredio) >= -12.5 && (snapLocalX + margemPredio) <= 12.5;
+    const dentroDaAreaZ = (snapLocalZ - margemPredio) >= -10 && (snapLocalZ + margemPredio) <= 10;
+
+    const ehZonaRestritaA1H2 = snapLocalZ <= -4.0;
+    const ehZonaAdminF4H4 = (Math.abs(snapLocalZ - 1.5) < 0.1 && snapLocalX <= -4.0 && snapLocalX >= -11.0);
+    const ehZonaAdmin = (snapLocalZ >= -2.0 && snapLocalZ <= 2.0 && snapLocalX <= -4.0 && snapLocalX >= -11.0);
+    const ehZonaObrasParalela = (snapLocalX >= -6.0 && snapLocalX <= 1.0 && snapLocalZ >= 3.0 && snapLocalZ <= 9.0);
+
+    const ehBeiradaRio = (Math.abs(snapLocalX - 10.5) < 0.1); 
+    const restricaoBombaAgua = (itemSelecionado === "bomba_agua" && !ehBeiradaRio);
+
+    const posX = snapLocalX + asfaltoPosX;
+    const posZ = snapLocalZ + asfaltoPosZ;
+    const jaTemPredio = scene.meshes.some(m => m.name === "predio" && Math.abs(m.position.x - posX) < 0.1 && Math.abs(m.position.z - posZ) < 0.1);
+
+    if (!dentroDaAreaX || !dentroDaAreaZ || ehZonaRestritaA1H2 || ehZonaAdminF4H4 || ehZonaAdmin || ehZonaObrasParalela || jaTemPredio || restricaoBombaAgua) {
+        return false;
+    }
+    return true;
+}
+
 export function setupBuildSystem(scene, groundInterno) {
     let modoConstrucao = false;
     let modoDesconstruir = false; 
@@ -140,26 +166,13 @@ export function setupBuildSystem(scene, groundInterno) {
                         cursorConstrucao.position.z = posZ;
 
                         const margemPredio = tamanhoGrid / 2; 
-                        const dentroDaAreaX = (snapLocalX - margemPredio) >= -12.5 && (snapLocalX + margemPredio) <= 12.5;
-                        const dentroDaAreaZ = (snapLocalZ - margemPredio) >= -10 && (snapLocalZ + margemPredio) <= 10;
-
-                        const ehZonaRestritaA1H2 = snapLocalZ <= -4.0;
-                        const ehZonaAdminF4H4 = (Math.abs(snapLocalZ - 1.5) < 0.1 && snapLocalX <= -4.0 && snapLocalX >= -11.0);
-                        const ehZonaAdmin = (snapLocalZ >= -2.0 && snapLocalZ <= 2.0 && snapLocalX <= -4.0 && snapLocalX >= -11.0);
-
-                        // ✅ RESTRIÇÃO BLOQUEANDO PARALELAMENTE À SEDE (X: -6.0 a 1.0, Z: 3.0 a 9.0)
-                        const ehZonaObrasParalela = (snapLocalX >= -6.0 && snapLocalX <= 1.0 && snapLocalZ >= 3.0 && snapLocalZ <= 9.0);
-
-                        const ehBeiradaRio = (Math.abs(snapLocalX - 10.5) < 0.1); 
-                        const restricaoBombaAgua = (itemSelecionado === "bomba_agua" && !ehBeiradaRio);
-
-                        const jaTemPredio = scene.meshes.some(m => m.name === "predio" && Math.abs(m.position.x - posX) < 0.1 && Math.abs(m.position.z - posZ) < 0.1);
+                        const posicaoValida = validarPosicaoConstrucao(snapLocalX, snapLocalZ, margemPredio, itemSelecionado, scene, groundInterno);
 
                         const limiteAtingido = !podeConstruir();
                         const custoAtual = CUSTOS_ESTRUTURAS[itemSelecionado] || 0;
                         const semDinheiro = !podePagar(custoAtual);
 
-                        if (!isDevModeActive() && (!dentroDaAreaX || !dentroDaAreaZ || ehZonaRestritaA1H2 || ehZonaAdminF4H4 || ehZonaAdmin || ehZonaObrasParalela || jaTemPredio || restricaoBombaAgua || limiteAtingido || semDinheiro)) {
+                        if (!isDevModeActive() && (!posicaoValida || limiteAtingido || semDinheiro)) {
                             cursorConstrucao.material = matCursorInvalido;
                         } else {
                             cursorConstrucao.material = matCursorValido;

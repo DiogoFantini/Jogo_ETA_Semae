@@ -102,7 +102,7 @@ export function atualizarMetaHUDContratos() {
     }
 }
 
-export function setupPainelContratos(scene) {
+export function setupPainelContratos(scene, predioVisual, hitbox) {
     if (contratosDisponiveis.length === 0) {
         gerarLoteEquilibradoContratos();
     }
@@ -436,11 +436,8 @@ export function setupPainelContratos(scene) {
 
         atualizarMetaHUDContratos();
     });
-    
-    const predioVisual = scene.getMeshByName("centroAdministrativoVisual");
-    const hitbox = scene.getMeshByName("centroAdminHitbox");
 
-    if (hitbox) {
+if (hitbox) {
         hitbox.isVisible = true;
         hitbox.visibility = 0;
         hitbox.isPickable = true;
