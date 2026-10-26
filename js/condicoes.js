@@ -1,20 +1,21 @@
 import { atualizarTerreno, atualizarDinheiro } from './hud.js';
 
+// ==========================================================
+// CONFIGURAÇÕES E ESTADO DO JOGO
+// ==========================================================
 let terrenoUsado = 0;
 let terrenoMax = 4; // Limite padrão de terrenos
 let dinheiro = 450000; // Saldo inicial: R$ 450.000,00
 
-// Tabela de Custos Realistas das Estruturas
 export const CUSTOS_ESTRUTURAS = {
     bomba_agua: 33000,   // R$ 33.000
     caixa_agua: 150000   // R$ 150.000
 };
 
-// Taxa de Reembolso na Desconstrução (45%)
-const TAXA_REEMBOLSO = 0.45;
+const TAXA_REEMBOLSO = 0.45; // 45% de reembolso na desconstrução
 
 // ==========================================================
-// GESTÃO DE DINHEIRO
+// GESTÃO FINANCEIRA
 // ==========================================================
 export function getDinheiro() {
     return dinheiro;
@@ -44,7 +45,7 @@ export function adicionarDinheiro(valor) {
 
 export function reembolsarDinheiro(itemTipo) {
     const valorInvestido = CUSTOS_ESTRUTURAS[itemTipo] || 0;
-    const reembolso = Math.round(valorInvestido * TAXA_REEMBOLSO); // Reembolso de 45% do valor investido
+    const reembolso = Math.round(valorInvestido * TAXA_REEMBOLSO);
     dinheiro += reembolso;
     atualizarDinheiro(dinheiro);
 }
@@ -86,38 +87,34 @@ export function definirLimiteTerreno(novoLimite) {
 }
 
 // ==========================================================
-// POP-UPS DE ALERTA DO JOGO
+// SISTEMA DE NOTIFICAÇÃO E POP-UPS (UI)
 // ==========================================================
+let timerPopup = null;
+
 export function exibirPopUpAviso(mensagem) {
     let popup = document.getElementById("popup-aviso-gameplay");
     
     if (popup) {
         popup.remove();
+        if (timerPopup) clearTimeout(timerPopup);
     }
 
     popup = document.createElement("div");
     popup.id = "popup-aviso-gameplay";
     
-    popup.style.position = "fixed";
-    popup.style.top = "12%";
-    popup.style.left = "50%";
-    popup.style.transform = "translate(-50%, -50%)";
-    popup.style.backgroundColor = "rgba(15, 23, 42, 0.95)";
-    popup.style.color = "#f87171"; 
-    popup.style.border = "2px solid #ef4444";
-    popup.style.borderRadius = "10px";
-    popup.style.padding = "12px 24px";
-    popup.style.fontFamily = "Arial, sans-serif";
-    popup.style.fontSize = "16px";
-    popup.style.fontWeight = "bold";
-    popup.style.boxShadow = "0 8px 20px rgba(0,0,0,0.7)";
-    popup.style.zIndex = "2000";
-    popup.style.pointerEvents = "none";
-    popup.style.transition = "all 0.4s ease-in-out";
-    popup.style.opacity = "0";
+    popup.style.cssText = `
+        position: fixed; top: 12%; left: 50%;
+        transform: translate(-50%, -50%);
+        background-color: rgba(15, 23, 42, 0.95);
+        color: #f87171; border: 2px solid #ef4444;
+        border-radius: 10px; padding: 12px 24px;
+        font-family: Arial, sans-serif; font-size: 16px;
+        font-weight: bold; box-shadow: 0 8px 20px rgba(0,0,0,0.7);
+        z-index: 2000; pointer-events: none;
+        transition: all 0.4s ease-in-out; opacity: 0;
+    `;
 
     popup.innerHTML = mensagem;
-
     document.body.appendChild(popup);
 
     requestAnimationFrame(() => {
@@ -125,8 +122,8 @@ export function exibirPopUpAviso(mensagem) {
         popup.style.transform = "translate(-50%, -30%)";
     });
 
-    setTimeout(() => {
-        if (popup) {
+    timerPopup = setTimeout(() => {
+        if (popup && popup.parentElement) {
             popup.style.opacity = "0";
             popup.style.transform = "translate(-50%, -60%)";
             setTimeout(() => popup.remove(), 400);

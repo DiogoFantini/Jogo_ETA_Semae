@@ -71,8 +71,19 @@ let edicaoJornalAtual = {
     climaPrevisto: EVENTOS_CLIMATICOS.normal
 };
 
-export function getEventoClimaticoAtual() { return eventoClimaticoAtual; }
-export function getEventoSorteadoSemana() { return eventoClimaticoAtual; }
+// ==========================================================
+// CONSULTA DE CLIMA (AJUSTADO PARA EVENTOS ATIVOS)
+// ==========================================================
+
+// Retorna o efeito do clima APENAS se o evento estiver acontecendo no momento
+export function getEventoClimaticoAtual() { 
+    return eventoAtivoNoMomento ? eventoClimaticoAtual : EVENTOS_CLIMATICOS.normal; 
+}
+
+// Retorna o clima sorteado para a semana (utilizado para previsões no jornal/relatório)
+export function getEventoSorteadoSemana() { 
+    return eventoClimaticoAtual; 
+}
 
 export function setProximoClima(idClima) {
     if (EVENTOS_CLIMATICOS[idClima]) {
@@ -80,6 +91,9 @@ export function setProximoClima(idClima) {
     }
 }
 
+// ==========================================================
+// SISTEMA E CICLO DE CLIMA
+// ==========================================================
 export function setupSistemaClima(scene) {
     criarOverlaySecaHTML();
     criarEfeitosParticulas(scene);
@@ -126,12 +140,11 @@ export function setupSistemaClima(scene) {
                     aplicarEfeitosVisuaisClima(scene, EVENTOS_CLIMATICOS.normal.id);
                 }
                 
-                // Força o clima normal para evitar acionamentos de última hora
                 eventoClimaticoAtual = EVENTOS_CLIMATICOS.normal; 
                 probabilidadeInicio = 0;
                 probabilidadeFim = 0;
             } else {
-                // 3. LOOP NORMAL DE PROBABILIDADES
+                // 3. LOOP NORMAL DE PROBABILIDADES POR HORA
                 processarCicloHoraClima(scene);
             }
         }
@@ -171,7 +184,6 @@ function processarCicloHoraClima(scene) {
             exibirPopUpAviso(`⚠️ Evento climático iniciado: ${eventoClimaticoAtual.nome}! (${eventoClimaticoAtual.efeitoTexto})`);
         }
     } else {
-        // Aplica os efeitos negativos hora a hora
         if (eventoClimaticoAtual.id === "chuva_forte") {
             window.dispatchEvent(new CustomEvent("DANO_CHUVA"));
         }

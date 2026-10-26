@@ -41,7 +41,14 @@ function validarPosicaoConstrucao(snapLocalX, snapLocalZ, margemPredio, itemSele
 
     const posX = snapLocalX + asfaltoPosX;
     const posZ = snapLocalZ + asfaltoPosZ;
-    const jaTemPredio = scene.meshes.some(m => m.name === "predio" && Math.abs(m.position.x - posX) < 0.1 && Math.abs(m.position.z - posZ) < 0.1);
+
+    // Busca robusta em meshes e TransformNodes usando posição absoluta no mundo e margem de 1.0 unidade no grid
+    const todosOsNos = scene.meshes.concat(scene.transformNodes || []);
+    const jaTemPredio = todosOsNos.some(m => {
+        if (m.name !== "predio") return false;
+        const posMundo = m.getAbsolutePosition ? m.getAbsolutePosition() : m.position;
+        return Math.abs(posMundo.x - posX) < 1.0 && Math.abs(posMundo.z - posZ) < 1.0;
+    });
 
     if (!dentroDaAreaX || !dentroDaAreaZ || ehZonaRestritaA1H2 || ehZonaAdminF4H4 || ehZonaAdmin || ehZonaObrasParalela || jaTemPredio || restricaoBombaAgua) {
         return false;
@@ -204,8 +211,20 @@ export function setupBuildSystem(scene, groundInterno) {
             case BABYLON.PointerEventTypes.POINTERDOWN:
                 if (pointerInfo.event.button === 0) { 
                     if (!modoDesconstruir && cursorConstrucao.isVisible) {
+                        const asfaltoPosX = groundInterno.position.x;
+                        const asfaltoPosZ = groundInterno.position.z;
+                        const localX = cursorConstrucao.position.x - asfaltoPosX;
+                        const localZ = cursorConstrucao.position.z - asfaltoPosZ;
+                        const margemPredio = tamanhoGrid / 2;
+
+                        // Revalidação em tempo real na hora do clique
+                        const posicaoAindaValida = validarPosicaoConstrucao(localX, localZ, margemPredio, itemSelecionado, scene, groundInterno);
+
                         if (!isDevModeActive()) {
-                            if (!itemSelecionado) return;
+                            if (!itemSelecionado || !posicaoAindaValida) {
+                                cursorConstrucao.material = matCursorInvalido;
+                                return;
+                            }
                             
                             if (!podeConstruir()) {
                                 exibirPopUpLimite();
@@ -219,7 +238,7 @@ export function setupBuildSystem(scene, groundInterno) {
                             }
                         }
 
-                        if (cursorConstrucao.material === matCursorValido) {
+                        if (posicaoAindaValida) {
                             const posX = cursorConstrucao.position.x;
                             const posZ = cursorConstrucao.position.z;
                             const custo = CUSTOS_ESTRUTURAS[itemSelecionado] || 0;
@@ -233,6 +252,7 @@ export function setupBuildSystem(scene, groundInterno) {
                             }
 
                             if (novaEstrutura) {
+                                novaEstrutura.name = "predio"; // Garantia de identificação do nó pai
                                 novaEstrutura.tipoItem = itemSelecionado;
                             }
 
@@ -244,6 +264,9 @@ export function setupBuildSystem(scene, groundInterno) {
 
                             adicionarEstruturaAgua(itemSelecionado);
                             adicionarConsumoEstrutura(itemSelecionado);
+
+                            // Atualiza o cursor imediatamente para inválido evitando duplo clique no mesmo local
+                            cursorConstrucao.material = matCursorInvalido;
 
                             console.log(`[CONSTRUÇÃO] Estrutura registrada: ${itemSelecionado} em X: ${posX}, Z: ${posZ}`);
                         }

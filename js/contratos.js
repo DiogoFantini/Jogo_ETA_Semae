@@ -17,6 +17,11 @@ let proximoIdContrato = 1;
 let ultimoDiaGeracao = -1;
 let ultimoDiaSemana = -1;
 
+export function aumentarLimiteContratos(quantidade = 3) {
+    MAX_CONTRATOS_ATIVOS += quantidade;
+    console.log(`[CONTRATOS] Limite de contratos expandido para: ${MAX_CONTRATOS_ATIVOS}`);
+}
+
 const NOMES_CLIENTES = [
     { nome: "Bairro Residencial das Palmeiras", tipo: "facil" },
     { nome: "Loteamento São José", tipo: "facil" },
@@ -430,14 +435,14 @@ export function setupPainelContratos(scene, predioVisual, hitbox) {
                 atualizarMetaHUDContratos();
                 if (painelOverlay.style.display === "flex") renderizarLista();
             }
-        } else if (ultimoDiaSemana === -1) { // CORRIGIDO: de !== -1 para === -1
+        } else if (ultimoDiaSemana === -1) {
             ultimoDiaSemana = diaAtual;
         }
 
         atualizarMetaHUDContratos();
     });
 
-if (hitbox) {
+    if (hitbox) {
         hitbox.isVisible = true;
         hitbox.visibility = 0;
         hitbox.isPickable = true;

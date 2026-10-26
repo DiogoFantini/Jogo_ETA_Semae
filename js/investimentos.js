@@ -1,4 +1,8 @@
-import { formatarDinheiro, gastarDinheiro, exibirPopUpAviso } from './condicoes.js';
+import { formatarDinheiro, gastarDinheiro, exibirPopUpAviso, definirLimiteTerreno, getTerrenoMax } from './condicoes.js';
+import { aumentarLimiteContratos, atualizarMetaHUDContratos } from './contratos.js';
+
+// Variável de controle para expansão do pátio
+export let terrenoExpandido = false;
 
 // ==========================================================
 // CATÁLOGO DE INVESTIMENTOS DA ETA
@@ -10,7 +14,44 @@ export const INVESTIMENTOS = [
         icone: "💡",
         preco: 80000,
         descricao: "Estruturação do departamento de P&D para modernização e futura automação dos processos de tratamento de água.",
-        comprado: false
+        comprado: false,
+        efeito: () => {
+            // Habilita a visualização do prédio de TI no mapa
+        }
+    },
+    {
+        id: "aumentar_equipe",
+        nome: "Aumentar Equipe",
+        icone: "👥",
+        preco: 50000,
+        descricao: "Contratação e capacitação de mais operadores, permitindo gerenciar até 8 contratos ativos simultaneamente na Sede.",
+        comprado: false,
+        efeito: () => {
+            aumentarLimiteContratos(3);
+            atualizarMetaHUDContratos();
+        }
+    },
+    {
+        id: "aumentar_infraestrutura",
+        nome: "Aumentar infraestrutura",
+        icone: "📜",
+        preco: 60000,
+        descricao: "Obtenção de licenças operacionais e autorizações ambientais para ampliação do limite de estruturas na ETA.",
+        comprado: false,
+        efeito: () => {
+            definirLimiteTerreno(getTerrenoMax() + 4);
+        }
+    },
+    {
+        id: "expandir_terreno",
+        nome: "Expandir terreno",
+        icone: "🚜",
+        preco: 120000,
+        descricao: "Obras de terraplenagem e pavimentação para liberar novas áreas úteis de construção no pátio operacional.",
+        comprado: false,
+        efeito: () => {
+            terrenoExpandido = true;
+        }
     }
 ];
 
@@ -30,6 +71,12 @@ export function comprarInvestimento(id, callbackAtualizarUI) {
 
     if (gastarDinheiro(inv.preco)) {
         inv.comprado = true;
+        
+        // Executa a função de impacto/efeito do investimento
+        if (typeof inv.efeito === "function") {
+            inv.efeito();
+        }
+
         exibirPopUpAviso(`🎉 Investimento "${inv.nome}" realizado com sucesso!`);
         if (callbackAtualizarUI) callbackAtualizarUI();
         return true;

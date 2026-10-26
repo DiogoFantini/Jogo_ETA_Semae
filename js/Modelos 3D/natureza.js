@@ -367,7 +367,7 @@ if (!ground.material) {
         return "carvalho";
     };
 
-    const LIM = 50; // mata externa vai até ±115
+    const LIM = 55; // mata externa vai até ±115
     let totalArvores = 0;
     for (let tentativa = 0; tentativa < 16000 && totalArvores < 900; tentativa++) {
         const x = (rng() * 2 - 1) * LIM;

@@ -10,8 +10,9 @@ let modoDesenvolvedorAtivo = false;
 let cliquesConstruir = 0;
 let containerCartesiano = null;
 let observerCartesiano = null;
+let elementosCartesianos = []; // Cache dos elementos DOM para evitar re-criação a cada frame
 
-// Elementos de Interface do Dev Tools
+// Elementos de Interface
 let btnFerramentas = null;
 let menuFerramentas = null;
 let painelCores = null;
@@ -33,32 +34,24 @@ export function registrarCliqueConstruir() {
 }
 
 // ==========================================================
-// CONFIGURAÇÃO DO MODO DESENVOLVEDOR E INTERFACE DE FERRAMENTAS
+// CONFIGURAÇÃO DO MODO DESENVOLVEDOR
 // ==========================================================
 export function setupDevButton(scene, groundInterno, tamanhoGrid, getModoConstrucao) {
     if (document.getElementById("btnDesenvolvedor")) return;
 
-    // 1. Botão Inferior Esquerdo (Ativar Modo Dev)
+    // Botão Principal Dev (Canto Inferior Esquerdo)
     const btnDev = document.createElement("button");
     btnDev.id = "btnDesenvolvedor";
     btnDev.innerText = "Desenvolvedor";
-    btnDev.style.position = "absolute";
-    btnDev.style.bottom = "20px";
-    btnDev.style.left = "20px";
-    btnDev.style.padding = "10px 15px";
-    btnDev.style.backgroundColor = "#7c3aed";
-    btnDev.style.color = "#fff";
-    btnDev.style.border = "none";
-    btnDev.style.borderRadius = "6px";
-    btnDev.style.fontFamily = "Arial, sans-serif";
-    btnDev.style.fontWeight = "bold";
-    btnDev.style.cursor = "pointer";
-    btnDev.style.boxShadow = "0 4px 6px rgba(0,0,0,0.3)";
-    btnDev.style.display = "none";
-    btnDev.style.zIndex = "100";
+    btnDev.style.cssText = `
+        position: absolute; bottom: 20px; left: 20px;
+        padding: 10px 15px; background-color: #7c3aed; color: #fff;
+        border: none; border-radius: 6px; font-family: Arial, sans-serif;
+        font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        display: none; z-index: 100;
+    `;
     document.body.appendChild(btnDev);
 
-    // Interfaces do Ferramentas e Paineis no Canto Inferior Direito
     criarInterfaceFerramentas(scene);
 
     btnDev.addEventListener("click", () => {
@@ -72,11 +65,9 @@ export function setupDevButton(scene, groundInterno, tamanhoGrid, getModoConstru
             }
         } else {
             btnDev.style.background = "#7c3aed";
-            if (btnFerramentas) btnFerramentas.style.display = "none";
-            if (menuFerramentas) menuFerramentas.style.display = "none";
-            if (painelCores) painelCores.style.display = "none";
-            if (painelTempo) painelTempo.style.display = "none";
-            if (painelClima) painelClima.style.display = "none";
+            [btnFerramentas, menuFerramentas, painelCores, painelTempo, painelClima].forEach(el => {
+                if (el) el.style.display = "none";
+            });
 
             removerSistemaCartesianoHTML(scene);
         }
@@ -84,168 +75,112 @@ export function setupDevButton(scene, groundInterno, tamanhoGrid, getModoConstru
 }
 
 // ==========================================================
-// MENU DE FERRAMENTAS & PAINÉIS (CANTO INFERIOR DIREITO)
+// CONSTRUÇÃO E EVENTOS DOS PAINÉIS DE FERRAMENTAS
 // ==========================================================
 function criarInterfaceFerramentas(scene) {
-    // 1. Botão "Ferramentas" no CANTO INFERIOR DIREITO
+    // 1. Botão Ferramentas
     btnFerramentas = document.createElement("button");
     btnFerramentas.id = "btnDevFerramentas";
     btnFerramentas.innerHTML = "⚙️ Ferramentas";
-    btnFerramentas.style.position = "absolute";
-    btnFerramentas.style.bottom = "20px";
-    btnFerramentas.style.right = "20px";
-    btnFerramentas.style.backgroundColor = "#0284c7";
-    btnFerramentas.style.color = "#ffffff";
-    btnFerramentas.style.border = "1px solid #38bdf8";
-    btnFerramentas.style.borderRadius = "8px";
-    btnFerramentas.style.padding = "10px 16px";
-    btnFerramentas.style.fontFamily = "Arial, sans-serif";
-    btnFerramentas.style.fontSize = "14px";
-    btnFerramentas.style.fontWeight = "bold";
-    btnFerramentas.style.cursor = "pointer";
-    btnFerramentas.style.boxShadow = "0 4px 8px rgba(0,0,0,0.4)";
-    btnFerramentas.style.zIndex = "100";
-    btnFerramentas.style.display = "none";
+    btnFerramentas.style.cssText = `
+        position: absolute; bottom: 20px; right: 20px;
+        background-color: #0284c7; color: #ffffff; border: 1px solid #38bdf8;
+        border-radius: 8px; padding: 10px 16px; font-family: Arial, sans-serif;
+        font-size: 14px; font-weight: bold; cursor: pointer;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.4); z-index: 100; display: none;
+    `;
     document.body.appendChild(btnFerramentas);
 
     // 2. Submenu de Opções
     menuFerramentas = document.createElement("div");
     menuFerramentas.id = "menuDevFerramentas";
-    menuFerramentas.style.position = "absolute";
-    menuFerramentas.style.bottom = "65px";
-    menuFerramentas.style.right = "20px";
-    menuFerramentas.style.backgroundColor = "rgba(15, 23, 42, 0.95)";
-    menuFerramentas.style.border = "1px solid #38bdf8";
-    menuFerramentas.style.borderRadius = "8px";
-    menuFerramentas.style.padding = "10px";
-    menuFerramentas.style.display = "none";
-    menuFerramentas.style.flexDirection = "column";
-    menuFerramentas.style.gap = "8px";
-    menuFerramentas.style.zIndex = "100";
-    menuFerramentas.style.minWidth = "180px";
+    menuFerramentas.style.cssText = `
+        position: absolute; bottom: 65px; right: 20px;
+        background-color: rgba(15, 23, 42, 0.95); border: 1px solid #38bdf8;
+        border-radius: 8px; padding: 10px; display: none; flex-direction: column;
+        gap: 8px; z-index: 100; min-width: 180px;
+    `;
+    menuFerramentas.innerHTML = `
+        <button id="btnOpcaoCores" class="btnDevMenuOption">🎨 Cores do Ambiente</button>
+        <button id="btnOpcaoTempo" class="btnDevMenuOption">⏱️ Controle de Tempo</button>
+        <button id="btnOpcaoClima" class="btnDevMenuOption">🌤️ Clima da Próx. Semana</button>
+    `;
     document.body.appendChild(menuFerramentas);
 
-    menuFerramentas.innerHTML = `
-        <button id="btnOpcaoCores" style="
-            background: #1e293b;
-            color: #fff;
-            border: 1px solid #334155;
-            padding: 8px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 13px;
-            text-align: left;
-            transition: background 0.2s;
-        ">🎨 Cores do Ambiente</button>
+    // Aplicar estilos aos botões do menu
+    menuFerramentas.querySelectorAll(".btnDevMenuOption").forEach(btn => {
+        btn.style.cssText = `
+            background: #1e293b; color: #fff; border: 1px solid #334155;
+            padding: 8px 12px; border-radius: 6px; cursor: pointer;
+            font-weight: bold; font-size: 13px; text-align: left; transition: background 0.2s;
+        `;
+    });
 
-        <button id="btnOpcaoTempo" style="
-            background: #1e293b;
-            color: #fff;
-            border: 1px solid #334155;
-            padding: 8px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 13px;
-            text-align: left;
-            transition: background 0.2s;
-        ">⏱️ Controle de Tempo</button>
+    // 3. Painéis de Conteúdo
+    painelCores = criarPainelCoresHTML();
+    painelTempo = criarPainelTempoHTML();
+    painelClima = criarPainelClimaHTML();
 
-        <button id="btnOpcaoClima" style="
-            background: #1e293b;
-            color: #fff;
-            border: 1px solid #334155;
-            padding: 8px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 13px;
-            text-align: left;
-            transition: background 0.2s;
-        ">🌤️ Clima da Próx. Semana</button>
+    [painelCores, painelTempo, painelClima].forEach(p => document.body.appendChild(p));
+
+    // 4. Configuração dos Eventos
+    setupEventosFerramentas(scene);
+}
+
+function criarPainelCoresHTML() {
+    const p = document.createElement("div");
+    p.id = "painelDevCores";
+    p.style.cssText = `
+        position: absolute; bottom: 65px; right: 20px;
+        background-color: rgba(15, 23, 42, 0.98); border: 2px solid #38bdf8;
+        border-radius: 10px; padding: 15px; display: none; flex-direction: column;
+        gap: 12px; z-index: 101; color: #ffffff; font-family: Arial, sans-serif;
+        font-size: 13px; box-shadow: 0 8px 16px rgba(0,0,0,0.6); min-width: 220px;
     `;
-
-    // 3. Painel de Edição de Cores
-    painelCores = document.createElement("div");
-    painelCores.id = "painelDevCores";
-    painelCores.style.position = "absolute";
-    painelCores.style.bottom = "65px";
-    painelCores.style.right = "20px";
-    painelCores.style.backgroundColor = "rgba(15, 23, 42, 0.98)";
-    painelCores.style.border = "2px solid #38bdf8";
-    painelCores.style.borderRadius = "10px";
-    painelCores.style.padding = "15px";
-    painelCores.style.display = "none";
-    painelCores.style.flexDirection = "column";
-    painelCores.style.gap = "12px";
-    painelCores.style.zIndex = "101";
-    painelCores.style.color = "#ffffff";
-    painelCores.style.fontFamily = "Arial, sans-serif";
-    painelCores.style.fontSize = "13px";
-    painelCores.style.boxShadow = "0 8px 16px rgba(0,0,0,0.6)";
-    painelCores.style.minWidth = "220px";
-    document.body.appendChild(painelCores);
-
-    painelCores.innerHTML = `
+    p.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 6px; font-weight: bold; color: #38bdf8;">
             <span>🎨 Editor de Cores</span>
             <button id="btnFecharCores" style="background: none; border: none; color: #f87171; font-size: 16px; cursor: pointer; font-weight: bold;">✕</button>
         </div>
-
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <label for="colorAsfalto">Chão da ETA:</label>
             <input type="color" id="colorAsfalto" value="#737880" style="cursor: pointer; border: none; background: none; width: 32px; height: 28px;">
         </div>
-
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <label for="colorMuro">Muros do Perímetro:</label>
             <input type="color" id="colorMuro" value="#EBEBF2" style="cursor: pointer; border: none; background: none; width: 32px; height: 28px;">
         </div>
-
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <label for="colorGrama">Grama Externa:</label>
             <input type="color" id="colorGrama" value="#339933" style="cursor: pointer; border: none; background: none; width: 32px; height: 28px;">
         </div>
-
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <label for="colorPortao">Portão Principal:</label>
             <input type="color" id="colorPortao" value="#262B33" style="cursor: pointer; border: none; background: none; width: 32px; height: 28px;">
         </div>
-
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <label for="colorCorpoAdmin">Prédio Admin:</label>
             <input type="color" id="colorCorpoAdmin" value="#E6E6ED" style="cursor: pointer; border: none; background: none; width: 32px; height: 28px;">
         </div>
     `;
+    return p;
+}
 
-    // 4. Painel de Controle de Tempo
-    painelTempo = document.createElement("div");
-    painelTempo.id = "painelDevTempo";
-    painelTempo.style.position = "absolute";
-    painelTempo.style.bottom = "65px";
-    painelTempo.style.right = "20px";
-    painelTempo.style.backgroundColor = "rgba(15, 23, 42, 0.98)";
-    painelTempo.style.border = "2px solid #38bdf8";
-    painelTempo.style.borderRadius = "10px";
-    painelTempo.style.padding = "15px";
-    painelTempo.style.display = "none";
-    painelTempo.style.flexDirection = "column";
-    painelTempo.style.gap = "12px";
-    painelTempo.style.zIndex = "101";
-    painelTempo.style.color = "#ffffff";
-    painelTempo.style.fontFamily = "Arial, sans-serif";
-    painelTempo.style.fontSize = "13px";
-    painelTempo.style.boxShadow = "0 8px 16px rgba(0,0,0,0.6)";
-    painelTempo.style.minWidth = "240px";
-    document.body.appendChild(painelTempo);
-
-    painelTempo.innerHTML = `
+function criarPainelTempoHTML() {
+    const p = document.createElement("div");
+    p.id = "painelDevTempo";
+    p.style.cssText = `
+        position: absolute; bottom: 65px; right: 20px;
+        background-color: rgba(15, 23, 42, 0.98); border: 2px solid #38bdf8;
+        border-radius: 10px; padding: 15px; display: none; flex-direction: column;
+        gap: 12px; z-index: 101; color: #ffffff; font-family: Arial, sans-serif;
+        font-size: 13px; box-shadow: 0 8px 16px rgba(0,0,0,0.6); min-width: 240px;
+    `;
+    p.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 6px; font-weight: bold; color: #38bdf8;">
             <span>⏱️ Controle de Tempo Dev</span>
             <button id="btnFecharTempo" style="background: none; border: none; color: #f87171; font-size: 16px; cursor: pointer; font-weight: bold;">✕</button>
         </div>
-
         <div>
             <span style="color: #94a3b8; font-weight: bold;">Velocidade Personalizada:</span>
             <div style="display: flex; gap: 6px; margin-top: 6px;">
@@ -259,7 +194,6 @@ function criarInterfaceFerramentas(scene) {
                 <button id="btnAplicarVel" style="flex: 1; background: #0284c7; color: #fff; border: none; border-radius: 4px; padding: 5px; cursor: pointer; font-weight: bold;">Aplicar Vel.</button>
             </div>
         </div>
-
         <div style="border-top: 1px solid #334155; padding-top: 10px;">
             <span style="color: #94a3b8; font-weight: bold;">Alterar Horário do Jogo:</span>
             <div style="display: flex; gap: 6px; margin-top: 6px; align-items: center;">
@@ -274,55 +208,38 @@ function criarInterfaceFerramentas(scene) {
             </div>
         </div>
     `;
+    return p;
+}
 
-    // 5. Painel de Seleção de Clima (Próxima Semana)
-    painelClima = document.createElement("div");
-    painelClima.id = "painelDevClima";
-    painelClima.style.position = "absolute";
-    painelClima.style.bottom = "65px";
-    painelClima.style.right = "20px";
-    painelClima.style.backgroundColor = "rgba(15, 23, 42, 0.98)";
-    painelClima.style.border = "2px solid #38bdf8";
-    painelClima.style.borderRadius = "10px";
-    painelClima.style.padding = "15px";
-    painelClima.style.display = "none";
-    painelClima.style.flexDirection = "column";
-    painelClima.style.gap = "12px";
-    painelClima.style.zIndex = "101";
-    painelClima.style.color = "#ffffff";
-    painelClima.style.fontFamily = "Arial, sans-serif";
-    painelClima.style.fontSize = "13px";
-    painelClima.style.boxShadow = "0 8px 16px rgba(0,0,0,0.6)";
-    painelClima.style.minWidth = "260px";
-    document.body.appendChild(painelClima);
-
-    painelClima.innerHTML = `
+function criarPainelClimaHTML() {
+    const p = document.createElement("div");
+    p.id = "painelDevClima";
+    p.style.cssText = `
+        position: absolute; bottom: 65px; right: 20px;
+        background-color: rgba(15, 23, 42, 0.98); border: 2px solid #38bdf8;
+        border-radius: 10px; padding: 15px; display: none; flex-direction: column;
+        gap: 12px; z-index: 101; color: #ffffff; font-family: Arial, sans-serif;
+        font-size: 13px; box-shadow: 0 8px 16px rgba(0,0,0,0.6); min-width: 260px;
+    `;
+    p.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 6px; font-weight: bold; color: #38bdf8;">
             <span>🌤️ Selecionar Clima da Próx. Semana</span>
             <button id="btnFecharClima" style="background: none; border: none; color: #f87171; font-size: 16px; cursor: pointer; font-weight: bold;">✕</button>
         </div>
-
         <div style="display: flex; flex-direction: column; gap: 8px;">
-            <button class="btnClimaDev" data-clima="normal" style="background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 6px; padding: 8px; cursor: pointer; font-weight: bold; text-align: left;">
-                🌤️ Normal & Ameno
-            </button>
-            <button class="btnClimaDev" data-clima="onda_calor" style="background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 6px; padding: 8px; cursor: pointer; font-weight: bold; text-align: left;">
-                🔥 Onda de Calor (+25% Demanda)
-            </button>
-            <button class="btnClimaDev" data-clima="chuva_forte" style="background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 6px; padding: 8px; cursor: pointer; font-weight: bold; text-align: left;">
-                🌧️ Chuva Forte (Alta Turbidez)
-            </button>
-            <button class="btnClimaDev" data-clima="seca_severa" style="background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 6px; padding: 8px; cursor: pointer; font-weight: bold; text-align: left;">
-                🌵 Seca Severa (-30% Vazão)
-            </button>
+            <button class="btnClimaDev" data-clima="normal" style="background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 6px; padding: 8px; cursor: pointer; font-weight: bold; text-align: left;">🌤️ Normal & Ameno</button>
+            <button class="btnClimaDev" data-clima="onda_calor" style="background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 6px; padding: 8px; cursor: pointer; font-weight: bold; text-align: left;">🔥 Onda de Calor (+25% Demanda)</button>
+            <button class="btnClimaDev" data-clima="chuva_forte" style="background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 6px; padding: 8px; cursor: pointer; font-weight: bold; text-align: left;">🌧️ Chuva Forte (Alta Turbidez)</button>
+            <button class="btnClimaDev" data-clima="seca_severa" style="background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 6px; padding: 8px; cursor: pointer; font-weight: bold; text-align: left;">🌵 Seca Severa (-30% Vazão)</button>
         </div>
-
         <div id="statusClimaAgendado" style="font-size: 11px; color: #38bdf8; text-align: center; margin-top: 4px; font-style: italic;">
             Clima agendado: Aleatório
         </div>
     `;
+    return p;
+}
 
-    // Eventos do Menu de Ferramentas
+function setupEventosFerramentas(scene) {
     btnFerramentas.addEventListener("click", () => {
         const estaAberto = menuFerramentas.style.display === "flex";
         menuFerramentas.style.display = estaAberto ? "none" : "flex";
@@ -357,28 +274,17 @@ function criarInterfaceFerramentas(scene) {
         painelClima.style.display = "flex";
     });
 
-    document.getElementById("btnFecharCores").addEventListener("click", () => {
-        painelCores.style.display = "none";
-    });
+    document.getElementById("btnFecharCores").addEventListener("click", () => { painelCores.style.display = "none"; });
+    document.getElementById("btnFecharTempo").addEventListener("click", () => { painelTempo.style.display = "none"; });
+    document.getElementById("btnFecharClima").addEventListener("click", () => { painelClima.style.display = "none"; });
 
-    document.getElementById("btnFecharTempo").addEventListener("click", () => {
-        painelTempo.style.display = "none";
-    });
-
-    document.getElementById("btnFecharClima").addEventListener("click", () => {
-        painelClima.style.display = "none";
-    });
-
-    // --- EVENTOS DO PAINEL DE CLIMA ---
+    // Eventos de Clima
     const botoesClima = painelClima.querySelectorAll(".btnClimaDev");
     botoesClima.forEach(btn => {
         btn.addEventListener("click", () => {
             const idClima = btn.getAttribute("data-clima");
-            
-            // Registra o clima agendado em clima.js
             setProximoClima(idClima, scene);
 
-            // Destaque visual do botão selecionado
             botoesClima.forEach(b => {
                 b.style.backgroundColor = "#1e293b";
                 b.style.borderColor = "#334155";
@@ -393,7 +299,7 @@ function criarInterfaceFerramentas(scene) {
         });
     });
 
-    // --- EVENTOS DO PAINEL DE TEMPO ---
+    // Eventos de Tempo
     painelTempo.querySelectorAll(".btnVelDev").forEach(btn => {
         btn.addEventListener("click", () => {
             const vel = parseFloat(btn.getAttribute("data-vel"));
@@ -404,9 +310,7 @@ function criarInterfaceFerramentas(scene) {
 
     document.getElementById("btnAplicarVel").addEventListener("click", () => {
         const vel = parseFloat(document.getElementById("inputVelLivre").value);
-        if (!isNaN(vel) && vel > 0) {
-            setVelocidadeTempo(vel);
-        }
+        if (!isNaN(vel) && vel > 0) setVelocidadeTempo(vel);
     });
 
     const aplicarHorarioPorExtenso = (strHora) => {
@@ -427,7 +331,7 @@ function criarInterfaceFerramentas(scene) {
         });
     });
 
-    // --- EVENTOS DO PAINEL DE CORES ---
+    // Eventos de Cores
     conectarInputCor(scene, "colorAsfalto", "matAsfalto", "diffuseColor");
     conectarInputCor(scene, "colorMuro", "matMuro", "diffuseColor");
     conectarInputCor(scene, "colorGrama", "matGramaNormal", "diffuseColor");
@@ -464,82 +368,81 @@ function sincronizarCoresAtuais(scene) {
 }
 
 // ==========================================================
-// SISTEMA CARTESIANO (HTML A-H / 1-6)
+// SISTEMA CARTESIANO DE ALTA PERFORMANCE (HTML A-H / 1-6)
 // ==========================================================
 export function criarSistemaCartesianoHTML(scene, groundInterno, tamanhoGrid) {
     removerSistemaCartesianoHTML(scene);
 
     containerCartesiano = document.createElement("div");
     containerCartesiano.id = "sistema-cartesiano-hud";
-    containerCartesiano.style.position = "absolute";
-    containerCartesiano.style.top = "0";
-    containerCartesiano.style.left = "0";
-    containerCartesiano.style.width = "100%";
-    containerCartesiano.style.height = "100%";
-    containerCartesiano.style.pointerEvents = "none";
-    containerCartesiano.style.zIndex = "5";
+    containerCartesiano.style.cssText = `
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        pointer-events: none; z-index: 5;
+    `;
     document.body.appendChild(containerCartesiano);
 
+    elementosCartesianos = [];
     const letras = ["A", "B", "C", "D", "E", "F", "G", "H"]; 
     const asfaltoPosX = groundInterno.position.x; 
     const asfaltoPosZ = groundInterno.position.z; 
 
-    function atualizarPosicoes() {
-        if (!containerCartesiano) return;
-        containerCartesiano.innerHTML = "";
+    // 1. Instanciar elementos das Letras (A-H) uma única vez
+    letras.forEach((letra, indexX) => {
+        const localX = 10.5 - (indexX * tamanhoGrid);
+        const posMundo = new BABYLON.Vector3(localX + asfaltoPosX, 0.1, -10.5 + asfaltoPosZ);
 
-        letras.forEach((letra, indexX) => {
-            const localX = 10.5 - (indexX * tamanhoGrid);
-            const posMundo = new BABYLON.Vector3(localX + asfaltoPosX, 0.1, -10.5 + asfaltoPosZ); 
+        const el = document.createElement("div");
+        el.innerText = letra;
+        el.style.cssText = `
+            position: absolute; transform: translateX(-50%); color: #ef4444;
+            font-family: Arial, sans-serif; font-weight: bold; font-size: 18px;
+            text-shadow: 1px 1px 2px #000; display: none;
+        `;
+        containerCartesiano.appendChild(el);
+        elementosCartesianos.push({ el, posMundo, offsetX: 0, offsetY: 10 });
+    });
+
+    // 2. Instanciar elementos dos Números (1-6) uma única vez
+    let numeroAtual = 1;
+    for (let localZ = -7.5; localZ <= 7.5; localZ += tamanhoGrid) {
+        const posMundo = new BABYLON.Vector3(12.5 + asfaltoPosX, 0.1, localZ + asfaltoPosZ);
+
+        const el = document.createElement("div");
+        el.innerText = numeroAtual;
+        el.style.cssText = `
+            position: absolute; transform: translateY(-50%); color: #ef4444;
+            font-family: Arial, sans-serif; font-weight: bold; font-size: 18px;
+            text-shadow: 1px 1px 2px #000; display: none;
+        `;
+        containerCartesiano.appendChild(el);
+        elementosCartesianos.push({ el, posMundo, offsetX: 10, offsetY: 0 });
+        numeroAtual++;
+    }
+
+    // 3. Função de atualização leve executada a cada frame (sem innerHTML = "")
+    function atualizarPosicoes() {
+        if (!containerCartesiano || !scene.activeCamera) return;
+
+        const engine = scene.getEngine();
+        const viewport = scene.activeCamera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight());
+        const transformMatrix = scene.getTransformMatrix();
+
+        elementosCartesianos.forEach(item => {
             const projecao = BABYLON.Vector3.Project(
-                posMundo,
+                item.posMundo,
                 BABYLON.Matrix.Identity(),
-                scene.getTransformMatrix(),
-                scene.activeCamera.viewport.toGlobal(scene.getEngine().getRenderWidth(), scene.getEngine().getRenderHeight())
+                transformMatrix,
+                viewport
             );
 
             if (projecao.z >= 0 && projecao.z <= 1) {
-                const el = document.createElement("div");
-                el.innerText = letra;
-                el.style.position = "absolute";
-                el.style.left = `${projecao.x}px`;
-                el.style.top = `${projecao.y + 10}px`;
-                el.style.transform = "translateX(-50%)";
-                el.style.color = "#ef4444"; 
-                el.style.fontFamily = "Arial, sans-serif";
-                el.style.fontWeight = "bold";
-                el.style.fontSize = "18px";
-                el.style.textShadow = "1px 1px 2px #000";
-                containerCartesiano.appendChild(el);
+                item.el.style.left = `${projecao.x + item.offsetX}px`;
+                item.el.style.top = `${projecao.y + item.offsetY}px`;
+                item.el.style.display = "block";
+            } else {
+                item.el.style.display = "none";
             }
         });
-
-        let numeroAtual = 1;
-        for (let localZ = -7.5; localZ <= 7.5; localZ += tamanhoGrid) {
-            const posMundo = new BABYLON.Vector3(12.5 + asfaltoPosX, 0.1, localZ + asfaltoPosZ); 
-            const projecao = BABYLON.Vector3.Project(
-                posMundo,
-                BABYLON.Matrix.Identity(),
-                scene.getTransformMatrix(),
-                scene.activeCamera.viewport.toGlobal(scene.getEngine().getRenderWidth(), scene.getEngine().getRenderHeight())
-            );
-
-            if (projecao.z >= 0 && projecao.z <= 1) {
-                const el = document.createElement("div");
-                el.innerText = numeroAtual;
-                el.style.position = "absolute";
-                el.style.left = `${projecao.x + 10}px`;
-                el.style.top = `${projecao.y}px`;
-                el.style.transform = "translateY(-50%)";
-                el.style.color = "#ef4444"; 
-                el.style.fontFamily = "Arial, sans-serif";
-                el.style.fontWeight = "bold";
-                el.style.fontSize = "18px";
-                el.style.textShadow = "1px 1px 2px #000";
-                containerCartesiano.appendChild(el);
-            }
-            numeroAtual++;
-        }
     }
 
     observerCartesiano = atualizarPosicoes;
@@ -555,4 +458,5 @@ export function removerSistemaCartesianoHTML(scene) {
         containerCartesiano.remove();
         containerCartesiano = null;
     }
+    elementosCartesianos = [];
 }

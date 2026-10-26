@@ -10,22 +10,10 @@ import { setupSistemaClima } from './clima.js';
 import { setupSistemaRelatorio } from './relatorio.js';
 import { createDecorations } from './Modelos 3D/decoracao.js';
 
-export function createScene(engine, canvas) {
-    const scene = new BABYLON.Scene(engine);
-    
-    scene.enablePhysics(new BABYLON.Vector3(0, -9.81, 0), new BABYLON.CannonJSPlugin());
-
-    // ==========================================================
-    // 1. ILUMINAÇÃO DINÂMICA (CICLO DIA E NOITE)
-    // ==========================================================
-    setupIluminacao(scene);
-
-    // ==========================================================
-    // 2. CENTRO DE CONTROLE DA ETA (Centralizado em G3)
-    // ==========================================================
-    const centroX = -2.5;
-    const centroZ = -1.5;
-
+// ==========================================================
+// 1. CONSTRUÇÃO DO CENTRO ADMINISTRATIVO (SEDA / ETA)
+// ==========================================================
+function criarCentroAdministrativo(scene, centroX, centroZ) {
     const centroAdminHitbox = BABYLON.MeshBuilder.CreateBox("centroAdminHitbox", { width: 5.2, height: 2.8, depth: 4.2 }, scene);
     centroAdminHitbox.position = new BABYLON.Vector3(centroX, 1.4, centroZ); 
     centroAdminHitbox.isVisible = false; 
@@ -33,6 +21,7 @@ export function createScene(engine, canvas) {
 
     const pecasPredio = [];
     
+    // Corpo do Prédio
     const corpoPredio = BABYLON.MeshBuilder.CreateBox("corpoAdmin", { width: 5, height: 2.5, depth: 4 }, scene);
     corpoPredio.position = new BABYLON.Vector3(centroX, 1.25, centroZ); 
     const matCorpo = new BABYLON.StandardMaterial("matCorpo", scene);
@@ -40,6 +29,7 @@ export function createScene(engine, canvas) {
     corpoPredio.material = matCorpo;
     pecasPredio.push(corpoPredio);
 
+    // Telhado
     const telhadoBorda = BABYLON.MeshBuilder.CreateBox("telhado", { width: 5.2, height: 0.2, depth: 4.2 }, scene);
     telhadoBorda.position = new BABYLON.Vector3(centroX, 2.6, centroZ); 
     const matTelhado = new BABYLON.StandardMaterial("matTelhado", scene);
@@ -47,6 +37,7 @@ export function createScene(engine, canvas) {
     telhadoBorda.material = matTelhado;
     pecasPredio.push(telhadoBorda);
 
+    // Pórtico de Vidro
     const portico = BABYLON.MeshBuilder.CreateBox("portico", { width: 2, height: 1.5, depth: 0.2 }, scene);
     portico.position = new BABYLON.Vector3(centroX, 0.75, centroZ - 2.05); 
     const matVidro = new BABYLON.StandardMaterial("matVidro", scene);
@@ -55,6 +46,7 @@ export function createScene(engine, canvas) {
     portico.material = matVidro;
     pecasPredio.push(portico);
 
+    // Janelas Laterais
     const criarJanela = (x, z) => {
         const janela = BABYLON.MeshBuilder.CreateBox("janela", { width: 1.2, height: 1.2, depth: 0.1 }, scene);
         janela.position = new BABYLON.Vector3(x, 1.2, z);
@@ -71,15 +63,13 @@ export function createScene(engine, canvas) {
     const predioVisual = BABYLON.Mesh.MergeMeshes(pecasPredio, true, true, undefined, false, true);
     predioVisual.name = "centroAdministrativoVisual";
 
-    // ==========================================================
-    // 3. CÂMERA
-    // ==========================================================
-    const camera = setupCamera(scene, canvas);
+    return { predioVisual, centroAdminHitbox };
+}
 
-    // ==========================================================
-    // 4. MAPA PRINCIPAL (Grama Externa e Asfalto da ETA)
-    // ==========================================================
-    // O tamanho foi ajustado de 150 para 100 e a textura é aplicada diretamente por natureza.js
+// ==========================================================
+// 2. TERRENO PRINCIPAL E PÁTIO DE ASFALTO
+// ==========================================================
+function criarTerrenoEAsfalto(scene) {
     const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 100, height: 100 }, scene);
     ground.position.y = 0.01; 
     ground.physicsImpostor = new BABYLON.PhysicsImpostor(ground, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 0, friction: 1 }, scene);
@@ -91,9 +81,13 @@ export function createScene(engine, canvas) {
     matAsfalto.specularColor = BABYLON.Color3.FromHexString("#1A1A1A"); 
     asfalto.material = matAsfalto;
 
-    // ==========================================================
-    // 5. MURO DA ETA E PORTÃO
-    // ==========================================================
+    return { ground, asfalto };
+}
+
+// ==========================================================
+// 3. ESTRUTURA PERIMETRAL (MUROS E PORTÃO)
+// ==========================================================
+function criarMurosEPortao(scene) {
     const matMuro = new BABYLON.StandardMaterial("matMuro", scene);
     matMuro.diffuseColor = BABYLON.Color3.FromHexString("#EBEBF2"); 
     matMuro.specularColor = BABYLON.Color3.FromHexString("#0D0D0D");
@@ -105,11 +99,13 @@ export function createScene(engine, canvas) {
         muro.physicsImpostor = new BABYLON.PhysicsImpostor(muro, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 0 }, scene);
     };
 
+    // Muros do Perímetro
     criarMuro(-7.5, 0, 0.25, 20.25); 
     criarMuro(5, 10, 25.25, 0.25);
     criarMuro(-2.25, -10, 10.5, 0.25);
     criarMuro(12.25, -10, 10.5, 0.25);
 
+    // Portão Principal
     const matPortao = new BABYLON.StandardMaterial("matPortao", scene);
     matPortao.diffuseColor = BABYLON.Color3.FromHexString("#262B33");
     matPortao.specularColor = BABYLON.Color3.FromHexString("#808080");
@@ -123,10 +119,33 @@ export function createScene(engine, canvas) {
     portaoDir.position = new BABYLON.Vector3(6, 1.1, -10); 
     portaoDir.material = matPortao;
     portaoDir.physicsImpostor = new BABYLON.PhysicsImpostor(portaoDir, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 0 }, scene);
+}
 
-    // ==========================================================
-    // 7. SISTEMAS DE GAMEPLAY
-    // ==========================================================
+// ==========================================================
+// 4. ORQUESTRADOR DA CENA PRINCIPAL
+// ==========================================================
+export function createScene(engine, canvas) {
+    const scene = new BABYLON.Scene(engine);
+    
+    // Motor de Física (Cannon.js)
+    scene.enablePhysics(new BABYLON.Vector3(0, -9.81, 0), new BABYLON.CannonJSPlugin());
+
+    // 1. Iluminação Dinâmica
+    setupIluminacao(scene);
+
+    // 2. Prédio Administrativo
+    const { predioVisual, centroAdminHitbox } = criarCentroAdministrativo(scene, -2.5, -1.5);
+
+    // 3. Câmera
+    const camera = setupCamera(scene, canvas);
+
+    // 4. Terreno e Asfalto
+    const { ground, asfalto } = criarTerrenoEAsfalto(scene);
+
+    // 5. Muros e Portão
+    criarMurosEPortao(scene);
+
+    // 6. Sistemas de Gameplay e Interface
     setupBuildSystem(scene, asfalto);
     setupHUD(scene);
     iniciarSistemaAgua(scene);
