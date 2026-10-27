@@ -1,23 +1,87 @@
 // ============================================================================
 // natureza.js — Ambiente externo à ETA (grama, árvores, flores, juncos, pedras)
-//
-//  - GRAMA: textura procedural tileável (manchas, lâminas, terra) aplicada ao
-//    "ground" criado no scene.js + tufos 3D (thin instances) espalhados por tudo.
-//  - ÁRVORES DE 6 FORMATOS: carvalho, pinheiro, palmeira, ipê (amarelo e rosa)
-//    além de arbustos (verdes e floridos).
-//  - ÁRVORES EM TODA A ÁREA VERDE: amostragem com ruído (bosques e clareiras),
-//    espaçamento mínimo entre copas e exclusão só do que não é verde
-//    (ETA, rua, rio e cidade). Um anel de mata além do mapa fecha o horizonte.
-//  - Flores em canteiros naturais, juncos nas margens do rio e pedras.
-//  - Tudo usa thin instances (1 draw call por tipo) e cores de vértice.
-//
-// Uso: createNatureza(scene)  — chamar depois do "ground" existir (scene.js).
 // ============================================================================
 
+let especiesGlobal = {};
+let tufosGlobal = [];
+let floresGlobal = [];
+let juncosGlobal = [];
+let pedrasGlobal = [];
+
+let tufoMeshGlobal = null;
+let floresMeshGlobal = null;
+let juncoMeshGlobal = null;
+let pedraMeshGlobal = null;
+
+let sceneRefGlobal = null;
+
+function instanciarGlobal(mesh, lista) {
+    if (!mesh) return;
+    if (!lista || !lista.length) {
+        mesh.thinInstanceSetBuffer("matrix", new Float32Array(0), 16, true);
+        mesh.thinInstanceSetBuffer("color", new Float32Array(0), 4, true);
+        mesh.thinInstanceCount = 0;
+        return;
+    }
+    const buf = new Float32Array(lista.length * 16);
+    const cor = new Float32Array(lista.length * 4);
+    lista.forEach((it, i) => {
+        BABYLON.Matrix.Compose(
+            new BABYLON.Vector3(it.sx, it.sy, it.sz),
+            BABYLON.Quaternion.FromEulerAngles(it.tilt || 0, it.yaw || 0, 0),
+            new BABYLON.Vector3(it.x, it.y, it.z)
+        ).copyToArray(buf, i * 16);
+        cor[i * 4] = it.c[0];
+        cor[i * 4 + 1] = it.c[1];
+        cor[i * 4 + 2] = it.c[2];
+        cor[i * 4 + 3] = 1;
+    });
+    mesh.thinInstanceSetBuffer("matrix", buf, 16, true);
+    mesh.thinInstanceSetBuffer("color", cor, 4, true);
+    mesh.thinInstanceCount = lista.length;
+    mesh.alwaysSelectAsActiveMesh = true;
+}
+
+// Remove toda a vegetação / pedras dentro de uma área retangular do mapa
+export function removerNaturezaNaArea(xMin, xMax, zMin, zMax) {
+    const dentroDaArea = (x, z) => (x >= xMin && x <= xMax && z >= zMin && z <= zMax);
+
+    // 1. Árvores e Arbustos
+    Object.values(especiesGlobal).forEach(esp => {
+        if (esp.lista && esp.lista.length > 0) {
+            esp.lista = esp.lista.filter(item => !dentroDaArea(item.x, item.z));
+            instanciarGlobal(esp.mesh, esp.lista);
+        }
+    });
+
+    // 2. Tufos de Grama 3D
+    if (tufosGlobal.length > 0) {
+        tufosGlobal = tufosGlobal.filter(item => !dentroDaArea(item.x, item.z));
+        instanciarGlobal(tufoMeshGlobal, tufosGlobal);
+    }
+
+    // 3. Flores
+    if (floresGlobal.length > 0) {
+        floresGlobal = floresGlobal.filter(item => !dentroDaArea(item.x, item.z));
+        instanciarGlobal(floresMeshGlobal, floresGlobal);
+    }
+
+    // 4. Juncos
+    if (juncosGlobal.length > 0) {
+        juncosGlobal = juncosGlobal.filter(item => !dentroDaArea(item.x, item.z));
+        instanciarGlobal(juncoMeshGlobal, juncosGlobal);
+    }
+
+    // 5. Pedras
+    if (pedrasGlobal.length > 0) {
+        pedrasGlobal = pedrasGlobal.filter(item => !dentroDaArea(item.x, item.z));
+        instanciarGlobal(pedraMeshGlobal, pedrasGlobal);
+    }
+}
+
 export function createNatureza(scene, ground) {
-    // ------------------------------------------------------------------
-    // UTILITÁRIOS
-    // ------------------------------------------------------------------
+    sceneRefGlobal = scene;
+
     let semente = 77031;
     const rng = () => {
         semente |= 0; semente = (semente + 0x6D2B79F5) | 0;
@@ -32,7 +96,6 @@ export function createNatureza(scene, ground) {
     const V3 = (x, y, z) => new BABYLON.Vector3(x, y, z);
     const hex = (h) => BABYLON.Color3.FromHexString(h);
 
-    // Ruído de valor 2D (bosques e clareiras)
     const hash2 = (ix, iz) => {
         let h = (Math.imul(ix, 374761393) + Math.imul(iz, 668265263)) | 0;
         h = Math.imul(h ^ (h >>> 13), 1274126177);
@@ -55,7 +118,6 @@ export function createNatureza(scene, ground) {
         return t;
     };
 
-    // Desenha com cópias deslocadas para a textura emendar sem costura
     const comWrap = (t, x, y, margem, fn) => {
         for (const dx of [-t, 0, t]) for (const dy of [-t, 0, t]) {
             const px = x + dx, py = y + dy;
@@ -64,15 +126,12 @@ export function createNatureza(scene, ground) {
         }
     };
 
-    // ------------------------------------------------------------------
-    // ZONAS: onde NÃO é grama (ETA, rua, rio, cidade)
-    // ------------------------------------------------------------------
     const RIO = [17.2, 33.6];
     const proibido = (x, z, m = 0) => {
-        if (x > -10.5 - m && x < 20 + m && z > -13 - m && z < 13 + m) return true;       // ETA (muros + asfalto)
-        if (x > 2.2 - m && x < 7.8 + m && z < -8) return true;                           // rua de acesso
-        if (x > RIO[0] - m && x < RIO[1] + m) return true;                               // rio + margens
-        if (z < -50 - m && x > -58 && x < 78) return true;                               // cidade
+        if (x > -10.5 - m && x < 20 + m && z > -13 - m && z < 13 + m) return true;
+        if (x > 2.2 - m && x < 7.8 + m && z < -8) return true;
+        if (x > RIO[0] - m && x < RIO[1] + m) return true;
+        if (z < -50 - m && x > -58 && x < 78) return true;
         return false;
     };
     const distAteETA = (x, z) => {
@@ -81,16 +140,11 @@ export function createNatureza(scene, ground) {
     };
     const distBanco = (x) => (x < RIO[0] ? RIO[0] - x : (x > RIO[1] ? x - RIO[1] : 0));
 
-    // ==========================================================
-    // 1. GRAMA REALISTA (textura no "ground" + plano externo)
-    // ==========================================================
-    const LADO_TEXTURA = 16; // unidades de mundo por repetição
-
+    const LADO_TEXTURA = 16;
     const texGrama = criarTextura("texGramaNatureza", 1024, 1024, (ctx, t) => {
         ctx.fillStyle = "#4e9a3a";
         ctx.fillRect(0, 0, t, t);
 
-        // Manchas grandes (luz/sombra/solo)
         for (let i = 0; i < 80; i++) {
             const x = rng() * t, y = rng() * t, r = 50 + rng() * 150;
             const cor = escolher(["rgba(28,88,30,0.30)", "rgba(150,195,70,0.24)", "rgba(110,160,50,0.22)", "rgba(40,110,40,0.22)", "rgba(170,160,70,0.14)"]);
@@ -103,7 +157,6 @@ export function createNatureza(scene, ground) {
             });
         }
 
-        // Lâminas de grama (traços curtos com ângulos variados)
         const paleta = ["#2f6f2a", "#3f8a32", "#5aa63e", "#78bb4c", "#8fc95a", "#a3b84a", "#2a6226"];
         ctx.lineCap = "round";
         for (let i = 0; i < 6500; i++) {
@@ -123,7 +176,6 @@ export function createNatureza(scene, ground) {
         }
         ctx.globalAlpha = 1;
 
-        // Pontinhos de terra e folhas secas
         for (let i = 0; i < 160; i++) {
             const x = rng() * t, y = rng() * t;
             ctx.fillStyle = escolher(["rgba(130,110,60,0.30)", "rgba(100,85,50,0.25)", "rgba(190,180,90,0.25)"]);
@@ -136,8 +188,7 @@ export function createNatureza(scene, ground) {
     }, true);
     texGrama.anisotropicFilteringLevel = 8;
     
-    // Garante que o ground tenha um material atribuído antes de aplicar a textura
-if (!ground.material) {
+    if (!ground.material) {
         ground.material = new BABYLON.StandardMaterial("matGramaNatureza", scene);
     }
 
@@ -148,7 +199,6 @@ if (!ground.material) {
     texGrama.uScale = 100 / LADO_TEXTURA;
     texGrama.vScale = 100 / LADO_TEXTURA;
 
-    // Plano externo: continua o gramado além do mapa (sem bordas "cortadas")
     {
         const TAM = 200;
         const ext = BABYLON.MeshBuilder.CreateGround("gramaExterna", { width: TAM, height: TAM }, scene);
@@ -161,15 +211,11 @@ if (!ground.material) {
         ext.isPickable = false;
     }
 
-    // ==========================================================
-    // 2. MATERIAIS E AUXILIARES DE MALHA
-    // ==========================================================
     const matVC = new BABYLON.StandardMaterial("matNaturezaVC", scene);
     matVC.diffuseColor = new BABYLON.Color3(1, 1, 1);
     matVC.specularColor = BABYLON.Color3.Black();
     matVC.emissiveColor = new BABYLON.Color3(0.07, 0.09, 0.06);
 
-    // Cor por vértice com gradiente vertical (base mais escura = "oclusão")
     const pintar = (mesh, cor, baixo = 0.7, cima = 1.08) => {
         const pos = mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind);
         const n = pos.length / 3;
@@ -191,7 +237,6 @@ if (!ground.material) {
 
     const hash3 = (x, y, z) => { const s = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453; return s - Math.floor(s); };
 
-    // Esfera facetada e irregular (copas, arbustos, pedras)
     const blob = (diam, sub, jit, cor, x, y, z, sy = 1, baixo = 0.7, cima = 1.1) => {
         const m = BABYLON.MeshBuilder.CreateIcoSphere("blob", { radius: diam / 2, subdivisions: sub, flat: true }, scene);
         const pos = m.getVerticesData(BABYLON.VertexBuffer.PositionKind);
@@ -222,29 +267,8 @@ if (!ground.material) {
         return m;
     };
 
-    // Thin instances (matriz + cor) para um conjunto de posições
-    const instanciar = (mesh, lista) => {
-        if (!lista.length) { mesh.setEnabled(false); return; }
-        const buf = new Float32Array(lista.length * 16);
-        const cor = new Float32Array(lista.length * 4);
-        lista.forEach((it, i) => {
-            BABYLON.Matrix.Compose(
-                V3(it.sx, it.sy, it.sz),
-                BABYLON.Quaternion.FromEulerAngles(it.tilt || 0, it.yaw || 0, 0),
-                V3(it.x, it.y, it.z)
-            ).copyToArray(buf, i * 16);
-            cor[i * 4] = it.c[0]; cor[i * 4 + 1] = it.c[1]; cor[i * 4 + 2] = it.c[2]; cor[i * 4 + 3] = 1;
-        });
-        mesh.thinInstanceSetBuffer("matrix", buf, 16, true);
-        mesh.thinInstanceSetBuffer("color", cor, 4, true);
-        mesh.alwaysSelectAsActiveMesh = true;
-    };
-
     const tint = (v = 0.12) => [1 - v + rng() * v * 2, 1 - v + rng() * v * 2, 1 - v * 1.4 + rng() * v * 2];
 
-    // ==========================================================
-    // 3. ESPÉCIES DE ÁRVORES
-    // ==========================================================
     const criarCarvalho = () => fundir([
         cil({ diameterTop: 0.38, diameterBottom: 0.62, height: 2.4, tessellation: 7 }, 0, 1.2, 0, "#6b4a2f"),
         blob(3.4, 2, 0.12, "#2f8f3a", 0, 3.6, 0, 0.85),
@@ -330,7 +354,7 @@ if (!ground.material) {
         return fundir(partes, florido ? "arbustoFlor" : "arbustoVerde");
     };
 
-    const especies = {
+    especiesGlobal = {
         carvalho:   { mesh: criarCarvalho(),                                   raio: 2.0, lista: [] },
         pinheiro:   { mesh: criarPinheiro(),                                   raio: 1.5, lista: [] },
         palmeira:   { mesh: criarPalmeira(),                                   raio: 1.8, lista: [] },
@@ -340,9 +364,6 @@ if (!ground.material) {
         arbustoF:   { mesh: criarArbusto(true),                                raio: 0.9, lista: [] }
     };
 
-    // ==========================================================
-    // 4. DISTRIBUIÇÃO DAS ÁRVORES (por toda a área verde)
-    // ==========================================================
     const CEL = 3;
     const grade = new Map();
     const livre = (x, z, r) => {
@@ -367,22 +388,22 @@ if (!ground.material) {
         return "carvalho";
     };
 
-    const LIM = 55; // mata externa vai até ±115
+    const LIM = 55;
     let totalArvores = 0;
     for (let tentativa = 0; tentativa < 16000 && totalArvores < 900; tentativa++) {
         const x = (rng() * 2 - 1) * LIM;
         const z = (rng() * 2 - 1) * LIM;
         const dentro = Math.abs(x) <= 75 && Math.abs(z) <= 75;
 
-        if (proibido(x, z, 1.0)) continue;                    // tronco fora do rio/rua/cidade
+        if (proibido(x, z, 1.0)) continue;
         const dETA = distAteETA(x, z);
-        if (dETA < 3.5) continue;                             // folga em volta dos muros da ETA
+        if (dETA < 3.5) continue;
 
         const n = fbm(x * 0.045 + 10, z * 0.045 - 4);
-        const bosque = suave((n - 0.48) / 0.2);                // 0 = campo, 1 = bosque
+        const bosque = suave((n - 0.48) / 0.2);
         let dens = 0.2 + 0.8 * bosque;
-        if (dETA < 16) dens *= 0.35 + 0.65 * ((dETA - 3.5) / 12.5);   // área da ETA mais limpa
-        if (!dentro) dens = 0.35 + 0.65 * bosque;                      // mata externa mais densa
+        if (dETA < 16) dens *= 0.35 + 0.65 * ((dETA - 3.5) / 12.5);
+        if (!dentro) dens = 0.35 + 0.65 * bosque;
         if (rng() > dens) continue;
 
         const db = distBanco(x);
@@ -395,7 +416,7 @@ if (!ground.material) {
             pesos = { carvalho: 0.28, ipeAmarelo: 0.14, ipeRosa: 0.12, palmeira: 0.16, pinheiro: 0.14 };
         }
         const nome = sortear(pesos);
-        const esp = especies[nome];
+        const esp = especiesGlobal[nome];
         const escala = (dETA < 16 ? entre(0.7, 1.0) : entre(0.85, 1.4)) * (nome === "palmeira" ? entre(0.9, 1.15) : 1);
         if (!livre(x, z, esp.raio * escala)) continue;
 
@@ -410,25 +431,21 @@ if (!ground.material) {
         totalArvores++;
     }
 
-    // Arbustos em volta das árvores e soltos pelo campo
     for (let tentativa = 0; tentativa < 2200; tentativa++) {
         const x = (rng() * 2 - 1) * LIM, z = (rng() * 2 - 1) * LIM;
         if (proibido(x, z, 0.6) || distAteETA(x, z) < 2.5) continue;
         const n = fbm(x * 0.06 + 3, z * 0.06 + 9);
         if (rng() > 0.1 + 0.55 * suave((n - 0.35) / 0.3)) continue;
         const florido = rng() < 0.3;
-        const esp = florido ? especies.arbustoF : especies.arbustoV;
+        const esp = florido ? especiesGlobal.arbustoF : especiesGlobal.arbustoV;
         const esc = entre(0.7, 1.4);
         if (!livre(x, z, esp.raio * esc * 0.7)) continue;
         ocupar(x, z, esp.raio * esc * 0.7);
         esp.lista.push({ x, y: 0.01, z, sx: esc, sy: esc * entre(0.85, 1.15), sz: esc, yaw: rng() * 6.28, c: tint(0.14) });
     }
 
-    Object.values(especies).forEach(e => instanciar(e.mesh, e.lista));
+    Object.values(especiesGlobal).forEach(e => instanciarGlobal(e.mesh, e.lista));
 
-    // ==========================================================
-    // 5. TUFOS DE GRAMA 3D (cobrem todo o gramado)
-    // ==========================================================
     const texTufo = criarTextura("texTufo", 128, 128, (ctx, w, h) => {
         ctx.clearRect(0, 0, w, h);
         for (let i = 0; i < 24; i++) {
@@ -473,22 +490,19 @@ if (!ground.material) {
         return m;
     };
 
-    const tufoMesh = planosCruzados("tufoGrama", 1, 1, 3);
-    tufoMesh.material = matAlfa("matTufo", texTufo, new BABYLON.Color3(0.10, 0.16, 0.07));
+    tufoMeshGlobal = planosCruzados("tufoGrama", 1, 1, 3);
+    tufoMeshGlobal.material = matAlfa("matTufo", texTufo, new BABYLON.Color3(0.10, 0.16, 0.07));
 
-    const tufos = [];
-    for (let i = 0; i < 2000 && tufos.length < 1125; i++) {
+    tufosGlobal = [];
+    for (let i = 0; i < 2000 && tufosGlobal.length < 1125; i++) {
         const x = (rng() * 2 - 1) * 75, z = (rng() * 2 - 1) * 75;
         if (proibido(x, z, 0) || distAteETA(x, z) < 0.3) continue;
         const l = entre(0.7, 1.4), a = entre(0.35, 0.8);
         const verde = 0.85 + rng() * 0.3;
-        tufos.push({ x, y: 0.01, z, sx: l, sy: a, sz: l, yaw: rng() * 6.28, c: [verde * (0.9 + rng() * 0.25), verde, verde * 0.85] });
+        tufosGlobal.push({ x, y: 0.01, z, sx: l, sy: a, sz: l, yaw: rng() * 6.28, c: [verde * (0.9 + rng() * 0.25), verde, verde * 0.85] });
     }
-    instanciar(tufoMesh, tufos);
+    instanciarGlobal(tufoMeshGlobal, tufosGlobal);
 
-    // ==========================================================
-    // 6. FLORES (em canteiros naturais)
-    // ==========================================================
     const texFlor = criarTextura("texFlor", 64, 96, (ctx, w, h) => {
         ctx.clearRect(0, 0, w, h);
         ctx.strokeStyle = "#3f8a32"; ctx.lineWidth = 4;
@@ -506,11 +520,11 @@ if (!ground.material) {
     }, false, false);
     texFlor.hasAlpha = true;
 
-    const floresMesh = planosCruzados("flores", 0.5, 0.75, 2);
-    floresMesh.material = matAlfa("matFlores", texFlor, new BABYLON.Color3(0.18, 0.18, 0.18));
+    floresMeshGlobal = planosCruzados("flores", 0.5, 0.75, 2);
+    floresMeshGlobal.material = matAlfa("matFlores", texFlor, new BABYLON.Color3(0.18, 0.18, 0.18));
 
     const coresFlor = [[1, 1, 1], [1, 0.85, 0.2], [0.95, 0.4, 0.62], [0.72, 0.52, 0.96], [1, 0.52, 0.28]];
-    const flores = [];
+    floresGlobal = [];
     for (let c = 0; c < 26; c++) {
         const cx = (rng() * 2 - 1) * 72, cz = (rng() * 2 - 1) * 40;
         if (proibido(cx, cz, 2) || distAteETA(cx, cz) < 3) continue;
@@ -520,14 +534,11 @@ if (!ground.material) {
             const x = cx + Math.cos(ang) * r, z = cz + Math.sin(ang) * r;
             if (proibido(x, z, 0.3) || distAteETA(x, z) < 1) continue;
             const s = entre(0.8, 1.3);
-            flores.push({ x, y: 0.01, z, sx: s, sy: s, sz: s, yaw: rng() * 6.28, c: rng() < 0.2 ? escolher(coresFlor) : cor });
+            floresGlobal.push({ x, y: 0.01, z, sx: s, sy: s, sz: s, yaw: rng() * 6.28, c: rng() < 0.2 ? escolher(coresFlor) : cor });
         }
     }
-    instanciar(floresMesh, flores);
+    instanciarGlobal(floresMeshGlobal, floresGlobal);
 
-    // ==========================================================
-    // 7. JUNCOS NAS MARGENS DO RIO
-    // ==========================================================
     const texJunco = criarTextura("texJunco", 64, 256, (ctx, w, h) => {
         ctx.clearRect(0, 0, w, h);
         for (let i = 0; i < 7; i++) {
@@ -543,43 +554,38 @@ if (!ground.material) {
     }, false, false);
     texJunco.hasAlpha = true;
 
-    const juncoMesh = planosCruzados("juncos", 0.9, 2.2, 2);
-    juncoMesh.material = matAlfa("matJuncos", texJunco, new BABYLON.Color3(0.12, 0.16, 0.08));
+    juncoMeshGlobal = planosCruzados("juncos", 0.9, 2.2, 2);
+    juncoMeshGlobal.material = matAlfa("matJuncos", texJunco, new BABYLON.Color3(0.12, 0.16, 0.08));
 
-    const juncos = [];
-    for (let i = 0; i < 1400 && juncos.length < 380; i++) {
+    juncosGlobal = [];
+    for (let i = 0; i < 1400 && juncosGlobal.length < 380; i++) {
         const z = entre(-50, 75);
         const lado = rng() < 0.5 ? 0 : 1;
-        if (lado === 0 && z > -13 && z < 13) continue;                 // não invade a ETA
-        if (vnoise(z * 0.25 + lado * 7, lado * 3.1) < 0.4) continue;    // formam moitas
+        if (lado === 0 && z > -13 && z < 13) continue;
+        if (vnoise(z * 0.25 + lado * 7, lado * 3.1) < 0.4) continue;
         const x = lado === 0 ? entre(16.0, 17.3) : entre(33.5, 34.8);
         const s = entre(0.7, 1.3);
-        juncos.push({ x, y: 0.02, z, sx: s, sy: s * entre(0.8, 1.2), sz: s, yaw: rng() * 6.28, c: tint(0.1) });
+        juncosGlobal.push({ x, y: 0.02, z, sx: s, sy: s * entre(0.8, 1.2), sz: s, yaw: rng() * 6.28, c: tint(0.1) });
     }
-    instanciar(juncoMesh, juncos);
+    instanciarGlobal(juncoMeshGlobal, juncosGlobal);
 
-    // ==========================================================
-    // 8. PEDRAS
-    // ==========================================================
-    const pedraMesh = fundir([blob(1, 1, 0.28, "#8c9096", 0, 0, 0, 0.7, 0.75, 1.1)], "pedras");
-    const pedras = [];
-    const novaPedra = (x, z, escala) => pedras.push({
+    pedraMeshGlobal = fundir([blob(1, 1, 0.28, "#8c9096", 0, 0, 0, 0.7, 0.75, 1.1)], "pedras");
+    pedrasGlobal = [];
+    const novaPedra = (x, z, escala) => pedrasGlobal.push({
         x, y: 0.01 + 0.12 * escala, z,
         sx: escala * entre(0.8, 1.5), sy: escala * entre(0.5, 0.9), sz: escala * entre(0.8, 1.4),
         yaw: rng() * 6.28, c: [0.8 + rng() * 0.3, 0.8 + rng() * 0.3, 0.8 + rng() * 0.28]
     });
-    for (let i = 0; i < 3000 && pedras.length < 45; i++) {
+    for (let i = 0; i < 3000 && pedrasGlobal.length < 45; i++) {
         const x = (rng() * 2 - 1) * 74, z = (rng() * 2 - 1) * 74;
         if (proibido(x, z, 0.8) || distAteETA(x, z) < 2.5) continue;
         novaPedra(x, z, entre(0.5, 1.2));
     }
-    for (let i = 0; i < 60; i++) {                                 // pedras junto ao rio
+    for (let i = 0; i < 60; i++) {
         const z = entre(-50, 75);
         const lado = rng() < 0.5 ? 0 : 1;
         if (lado === 0 && z > -13 && z < 13) continue;
         novaPedra(lado === 0 ? entre(15.5, 16.7) : entre(34.0, 35.2), z, entre(0.4, 0.9));
     }
-    instanciar(pedraMesh, pedras);
-
-    console.info(`[natureza] árvores: ${totalArvores}, tufos: ${tufos.length}, flores: ${flores.length}, juncos: ${juncos.length}, pedras: ${pedras.length}`);
+    instanciarGlobal(pedraMeshGlobal, pedrasGlobal);
 }

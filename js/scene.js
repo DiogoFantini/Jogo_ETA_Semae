@@ -9,10 +9,8 @@ import { setupSistemaJornal } from './jornal.js';
 import { setupSistemaClima } from './clima.js';
 import { setupSistemaRelatorio } from './relatorio.js';
 import { createDecorations } from './Modelos 3D/decoracao.js';
+import { setupSistemaExpansao } from './expandirTerreno.js';
 
-// ==========================================================
-// 1. CONSTRUÇÃO DO CENTRO ADMINISTRATIVO (SEDA / ETA)
-// ==========================================================
 function criarCentroAdministrativo(scene, centroX, centroZ) {
     const centroAdminHitbox = BABYLON.MeshBuilder.CreateBox("centroAdminHitbox", { width: 5.2, height: 2.8, depth: 4.2 }, scene);
     centroAdminHitbox.position = new BABYLON.Vector3(centroX, 1.4, centroZ); 
@@ -21,7 +19,6 @@ function criarCentroAdministrativo(scene, centroX, centroZ) {
 
     const pecasPredio = [];
     
-    // Corpo do Prédio
     const corpoPredio = BABYLON.MeshBuilder.CreateBox("corpoAdmin", { width: 5, height: 2.5, depth: 4 }, scene);
     corpoPredio.position = new BABYLON.Vector3(centroX, 1.25, centroZ); 
     const matCorpo = new BABYLON.StandardMaterial("matCorpo", scene);
@@ -29,7 +26,6 @@ function criarCentroAdministrativo(scene, centroX, centroZ) {
     corpoPredio.material = matCorpo;
     pecasPredio.push(corpoPredio);
 
-    // Telhado
     const telhadoBorda = BABYLON.MeshBuilder.CreateBox("telhado", { width: 5.2, height: 0.2, depth: 4.2 }, scene);
     telhadoBorda.position = new BABYLON.Vector3(centroX, 2.6, centroZ); 
     const matTelhado = new BABYLON.StandardMaterial("matTelhado", scene);
@@ -37,7 +33,6 @@ function criarCentroAdministrativo(scene, centroX, centroZ) {
     telhadoBorda.material = matTelhado;
     pecasPredio.push(telhadoBorda);
 
-    // Pórtico de Vidro
     const portico = BABYLON.MeshBuilder.CreateBox("portico", { width: 2, height: 1.5, depth: 0.2 }, scene);
     portico.position = new BABYLON.Vector3(centroX, 0.75, centroZ - 2.05); 
     const matVidro = new BABYLON.StandardMaterial("matVidro", scene);
@@ -46,7 +41,6 @@ function criarCentroAdministrativo(scene, centroX, centroZ) {
     portico.material = matVidro;
     pecasPredio.push(portico);
 
-    // Janelas Laterais
     const criarJanela = (x, z) => {
         const janela = BABYLON.MeshBuilder.CreateBox("janela", { width: 1.2, height: 1.2, depth: 0.1 }, scene);
         janela.position = new BABYLON.Vector3(x, 1.2, z);
@@ -66,9 +60,6 @@ function criarCentroAdministrativo(scene, centroX, centroZ) {
     return { predioVisual, centroAdminHitbox };
 }
 
-// ==========================================================
-// 2. TERRENO PRINCIPAL E PÁTIO DE ASFALTO
-// ==========================================================
 function criarTerrenoEAsfalto(scene) {
     const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 100, height: 100 }, scene);
     ground.position.y = 0.01; 
@@ -84,26 +75,28 @@ function criarTerrenoEAsfalto(scene) {
     return { ground, asfalto };
 }
 
-// ==========================================================
-// 3. ESTRUTURA PERIMETRAL (MUROS E PORTÃO)
-// ==========================================================
 function criarMurosEPortao(scene) {
     const matMuro = new BABYLON.StandardMaterial("matMuro", scene);
     matMuro.diffuseColor = BABYLON.Color3.FromHexString("#EBEBF2"); 
     matMuro.specularColor = BABYLON.Color3.FromHexString("#0D0D0D");
 
-    const criarMuro = (cX, cZ, largura, profundidade) => {
-        const muro = BABYLON.MeshBuilder.CreateBox("muro", { width: largura, height: 2.2, depth: profundidade }, scene);
+    const criarMuro = (nome, cX, cZ, largura, profundidade) => {
+        const muro = BABYLON.MeshBuilder.CreateBox(nome, { width: largura, height: 2.2, depth: profundidade }, scene);
         muro.position = new BABYLON.Vector3(cX, 1.1, cZ); 
         muro.material = matMuro;
         muro.physicsImpostor = new BABYLON.PhysicsImpostor(muro, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 0 }, scene);
+        return muro;
     };
 
-    // Muros do Perímetro
-    criarMuro(-7.5, 0, 0.25, 20.25); 
-    criarMuro(5, 10, 25.25, 0.25);
-    criarMuro(-2.25, -10, 10.5, 0.25);
-    criarMuro(12.25, -10, 10.5, 0.25);
+    // Muros Perimétricos Originais Segmentados (Identificáveis para Remoção)
+    criarMuro("muro_orig_norte_leste", 11.25, 10, 12.5, 0.25);
+    criarMuro("muro_orig_norte_oeste", -1.25, 10, 12.5, 0.25);
+    criarMuro("muro_orig_oeste_norte", -7.5, 5, 0.25, 10.25);
+    criarMuro("muro_orig_oeste_sul", -7.5, -5, 0.25, 10.25);
+
+    // Muros do Perímetro Sul
+    criarMuro("muro_orig_sul_esq", -2.25, -10, 10.5, 0.25);
+    criarMuro("muro_orig_sul_dir", 12.25, -10, 10.5, 0.25);
 
     // Portão Principal
     const matPortao = new BABYLON.StandardMaterial("matPortao", scene);
@@ -121,31 +114,21 @@ function criarMurosEPortao(scene) {
     portaoDir.physicsImpostor = new BABYLON.PhysicsImpostor(portaoDir, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 0 }, scene);
 }
 
-// ==========================================================
-// 4. ORQUESTRADOR DA CENA PRINCIPAL
-// ==========================================================
 export function createScene(engine, canvas) {
     const scene = new BABYLON.Scene(engine);
     
-    // Motor de Física (Cannon.js)
     scene.enablePhysics(new BABYLON.Vector3(0, -9.81, 0), new BABYLON.CannonJSPlugin());
 
-    // 1. Iluminação Dinâmica
     setupIluminacao(scene);
 
-    // 2. Prédio Administrativo
     const { predioVisual, centroAdminHitbox } = criarCentroAdministrativo(scene, -2.5, -1.5);
 
-    // 3. Câmera
     const camera = setupCamera(scene, canvas);
 
-    // 4. Terreno e Asfalto
     const { ground, asfalto } = criarTerrenoEAsfalto(scene);
 
-    // 5. Muros e Portão
     criarMurosEPortao(scene);
 
-    // 6. Sistemas de Gameplay e Interface
     setupBuildSystem(scene, asfalto);
     setupHUD(scene);
     iniciarSistemaAgua(scene);
@@ -155,6 +138,8 @@ export function createScene(engine, canvas) {
     setupSistemaRelatorio(scene);
     createBackground(scene, ground);
     createDecorations(scene);
+
+    setupSistemaExpansao(scene, asfalto);
 
     return scene;
 }

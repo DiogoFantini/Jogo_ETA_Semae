@@ -10,6 +10,7 @@ import {
 } from './tempo.js';
 import { CONFIG_BOMBA_AGUA, CONFIG_CAIXA_AGUA } from './variaveis-importantes.js';
 import { CUSTO_MANUTENCAO_ESTRUTURAS } from './relatorio.js';
+import { alternarModoExpansaoTerreno } from './expandirTerreno.js';
 
 // ==========================================================
 // ESTADO E CONFIGURAÇÕES DO HUD
@@ -248,6 +249,72 @@ function setupEventosControleTempo(container, scene) {
 }
 
 // ==========================================================
+// BOTÃO COMPRAR TERRENO (EXPANSÃO)
+// ==========================================================
+export function exibirBotaoComprarTerreno() {
+    let btnComprar = document.getElementById("btnComprarTerreno");
+    const btnConstruir = document.getElementById("btnConstruir");
+
+    if (!btnConstruir) return;
+
+    if (!btnComprar) {
+        btnComprar = document.createElement("button");
+        btnComprar.id = "btnComprarTerreno";
+        btnComprar.innerHTML = "🚜 Comprar terreno";
+
+        // Estilos e interatividade garantida para o clique do mouse
+        btnComprar.style.cssText = `
+            display: block;
+            width: 100%;
+            margin-top: 8px;
+            padding: 10px 16px;
+            background: rgba(0, 0, 0, 0.7);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            transition: all 0.2s ease-in-out;
+            box-sizing: border-box;
+            pointer-events: auto;
+            z-index: 100;
+        `;
+
+        btnComprar.addEventListener("mouseenter", () => {
+            btnComprar.style.background = "rgba(0, 0, 0, 0.85)";
+            btnComprar.style.borderColor = "#38bdf8";
+        });
+        btnComprar.addEventListener("mouseleave", () => {
+            btnComprar.style.background = "rgba(0, 0, 0, 0.7)";
+            btnComprar.style.borderColor = "rgba(255, 255, 255, 0.3)";
+        });
+
+        btnComprar.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (typeof alternarModoExpansaoTerreno === "function") {
+                alternarModoExpansaoTerreno();
+            }
+        });
+
+        let wrapper = document.getElementById("wrapper-btn-construir");
+        if (!wrapper) {
+            wrapper = document.createElement("div");
+            wrapper.id = "wrapper-btn-construir";
+            wrapper.style.cssText = "display: flex; flex-direction: column; align-items: stretch; width: fit-content; pointer-events: auto; z-index: 100;";
+            btnConstruir.parentNode.insertBefore(wrapper, btnConstruir);
+            wrapper.appendChild(btnConstruir);
+        }
+        wrapper.appendChild(btnComprar);
+    } else {
+        btnComprar.style.display = "block";
+    }
+}
+
+// ==========================================================
 // MENU DE CONSTRUÇÃO E CARDS
 // ==========================================================
 function criarMenuConstrucaoHUD() {
@@ -418,7 +485,6 @@ export function abrirModalSetorTI() {
     const modalExistente = document.getElementById("modalSetorTI-overlay");
     if (modalExistente) modalExistente.remove();
 
-    // 1. Overlay de tela cheia idêntico ao da Sede Administrativa
     const painelOverlay = document.createElement("div");
     painelOverlay.id = "modalSetorTI-overlay";
     painelOverlay.style.cssText = `
@@ -427,7 +493,6 @@ export function abrirModalSetorTI() {
         display: flex; justify-content: center; align-items: center; z-index: 9999;
     `;
 
-    // 2. Caixa do Modal
     const painelBox = document.createElement("div");
     painelBox.style.cssText = `
         background-color: #0f172a; border: 2px solid #38bdf8; border-radius: 12px;
@@ -436,20 +501,17 @@ export function abrirModalSetorTI() {
     `;
 
     painelBox.innerHTML = `
-        <!-- CABEÇALHO -->
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 12px; margin-bottom: 15px;">
             <h2 style="margin: 0; color: #38bdf8; font-size: 20px;">💻 Setor de Tecnologia e Inovação</h2>
             <button id="fecharModalTI" style="background: transparent; border: none; color: #94a3b8; font-size: 20px; font-weight: bold; cursor: pointer;">✕</button>
         </div>
 
-        <!-- BARRA DE ABAS DA TECNOLOGIA -->
         <div style="display: flex; gap: 8px; margin-bottom: 15px; border-bottom: 1px solid #334155; padding-bottom: 10px;">
             <button id="aba-pesquisas-ti" style="flex: 1; background-color: #0284c7; color: white; border: none; padding: 8px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px;">
                 🔬 Menu de Pesquisas & P&D
             </button>
         </div>
 
-        <!-- CONTEÚDO PRINCIPAL -->
         <div style="background-color: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 25px; min-height: 180px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
             <p style="color: #cbd5e1; font-size: 15px; margin: 0; line-height: 1.6;">
                 Bem-vindo ao centro de P&D da ETA. Aqui você poderá pesquisar novas tecnologias de tratamento de água e automação.
@@ -460,7 +522,6 @@ export function abrirModalSetorTI() {
     painelOverlay.appendChild(painelBox);
     document.body.appendChild(painelOverlay);
 
-    // Fechamento pelo botão ✕ ou clicando no overlay
     const fechar = () => painelOverlay.remove();
     document.getElementById("fecharModalTI").onclick = fechar;
     painelOverlay.addEventListener("click", (e) => {

@@ -1,5 +1,6 @@
 import { formatarDinheiro, gastarDinheiro, exibirPopUpAviso, definirLimiteTerreno, getTerrenoMax } from './condicoes.js';
 import { aumentarLimiteContratos, atualizarMetaHUDContratos } from './contratos.js';
+import { exibirBotaoComprarTerreno } from './hud.js';
 
 // Variável de controle para expansão do pátio
 export let terrenoExpandido = false;
@@ -51,6 +52,7 @@ export const INVESTIMENTOS = [
         comprado: false,
         efeito: () => {
             terrenoExpandido = true;
+            exibirBotaoComprarTerreno();
         }
     }
 ];

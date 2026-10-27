@@ -22,14 +22,18 @@ import {
 import { adicionarEstruturaAgua, removerEstruturaAgua } from './sistema-agua.js';
 import { adicionarConsumoEstrutura, removerConsumoEstrutura } from './sistema-energia.js';
 import { registrarGastoConstrucao } from './relatorio.js';
+import { isPosicaoEmQuadranteComprado } from './expandirTerreno.js';
 
 // Função auxiliar isolada para validar as regras de posicionamento da construção
 function validarPosicaoConstrucao(snapLocalX, snapLocalZ, margemPredio, itemSelecionado, scene, groundInterno) {
     const asfaltoPosX = groundInterno.position.x;
     const asfaltoPosZ = groundInterno.position.z;
 
-    const dentroDaAreaX = (snapLocalX - margemPredio) >= -12.5 && (snapLocalX + margemPredio) <= 12.5;
-    const dentroDaAreaZ = (snapLocalZ - margemPredio) >= -10 && (snapLocalZ + margemPredio) <= 10;
+    const dentroDaAreaBaseX = (snapLocalX - margemPredio) >= -12.5 && (snapLocalX + margemPredio) <= 12.5;
+    const dentroDaAreaBaseZ = (snapLocalZ - margemPredio) >= -10 && (snapLocalZ + margemPredio) <= 10;
+
+    const emQuadranteComprado = typeof isPosicaoEmQuadranteComprado === 'function' && isPosicaoEmQuadranteComprado(snapLocalX, snapLocalZ);
+    const dentroDaAreaPermitida = (dentroDaAreaBaseX && dentroDaAreaBaseZ) || emQuadranteComprado;
 
     const ehZonaRestritaA1H2 = snapLocalZ <= -4.0;
     const ehZonaAdminF4H4 = (Math.abs(snapLocalZ - 1.5) < 0.1 && snapLocalX <= -4.0 && snapLocalX >= -11.0);
@@ -42,7 +46,7 @@ function validarPosicaoConstrucao(snapLocalX, snapLocalZ, margemPredio, itemSele
     const posX = snapLocalX + asfaltoPosX;
     const posZ = snapLocalZ + asfaltoPosZ;
 
-    // Busca robusta em meshes e TransformNodes usando posição absoluta no mundo e margem de 1.0 unidade no grid
+    // Busca em meshes e TransformNodes para evitar sobreposição
     const todosOsNos = scene.meshes.concat(scene.transformNodes || []);
     const jaTemPredio = todosOsNos.some(m => {
         if (m.name !== "predio") return false;
@@ -50,7 +54,7 @@ function validarPosicaoConstrucao(snapLocalX, snapLocalZ, margemPredio, itemSele
         return Math.abs(posMundo.x - posX) < 1.0 && Math.abs(posMundo.z - posZ) < 1.0;
     });
 
-    if (!dentroDaAreaX || !dentroDaAreaZ || ehZonaRestritaA1H2 || ehZonaAdminF4H4 || ehZonaAdmin || ehZonaObrasParalela || jaTemPredio || restricaoBombaAgua) {
+    if (!dentroDaAreaPermitida || ehZonaRestritaA1H2 || ehZonaAdminF4H4 || ehZonaAdmin || ehZonaObrasParalela || jaTemPredio || restricaoBombaAgua) {
         return false;
     }
     return true;
@@ -217,7 +221,6 @@ export function setupBuildSystem(scene, groundInterno) {
                         const localZ = cursorConstrucao.position.z - asfaltoPosZ;
                         const margemPredio = tamanhoGrid / 2;
 
-                        // Revalidação em tempo real na hora do clique
                         const posicaoAindaValida = validarPosicaoConstrucao(localX, localZ, margemPredio, itemSelecionado, scene, groundInterno);
 
                         if (!isDevModeActive()) {
@@ -252,7 +255,7 @@ export function setupBuildSystem(scene, groundInterno) {
                             }
 
                             if (novaEstrutura) {
-                                novaEstrutura.name = "predio"; // Garantia de identificação do nó pai
+                                novaEstrutura.name = "predio"; 
                                 novaEstrutura.tipoItem = itemSelecionado;
                             }
 
@@ -265,7 +268,6 @@ export function setupBuildSystem(scene, groundInterno) {
                             adicionarEstruturaAgua(itemSelecionado);
                             adicionarConsumoEstrutura(itemSelecionado);
 
-                            // Atualiza o cursor imediatamente para inválido evitando duplo clique no mesmo local
                             cursorConstrucao.material = matCursorInvalido;
 
                             console.log(`[CONSTRUÇÃO] Estrutura registrada: ${itemSelecionado} em X: ${posX}, Z: ${posZ}`);
