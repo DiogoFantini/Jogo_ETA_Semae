@@ -5,6 +5,8 @@ import {
     getDataAtual 
 } from './tempo.js';
 import { setProximoClima, EVENTOS_CLIMATICOS } from './clima.js';
+import { adicionarDinheiro, gastarDinheiro, formatarDinheiro } from './condicoes.js';
+import { QUADRANTES_TERRENO } from './expandirTerreno.js';
 
 let modoDesenvolvedorAtivo = false;
 let cliquesConstruir = 0;
@@ -18,8 +20,14 @@ let menuFerramentas = null;
 let painelCores = null;
 let painelTempo = null;
 let painelClima = null;
+let painelDinheiro = null;
 
 export function isDevModeActive() {
+    // Retorna false para manter a cobrança de custos e travas financeiras mesmo no Dev Mode
+    return false;
+}
+
+export function isDevInterfaceActive() {
     return modoDesenvolvedorAtivo;
 }
 
@@ -65,7 +73,7 @@ export function setupDevButton(scene, groundInterno, tamanhoGrid, getModoConstru
             }
         } else {
             btnDev.style.background = "#7c3aed";
-            [btnFerramentas, menuFerramentas, painelCores, painelTempo, painelClima].forEach(el => {
+            [btnFerramentas, menuFerramentas, painelCores, painelTempo, painelClima, painelDinheiro].forEach(el => {
                 if (el) el.style.display = "none";
             });
 
@@ -101,6 +109,7 @@ function criarInterfaceFerramentas(scene) {
         gap: 8px; z-index: 100; min-width: 180px;
     `;
     menuFerramentas.innerHTML = `
+        <button id="btnOpcaoDinheiro" class="btnDevMenuOption">💰 Gestão de Dinheiro</button>
         <button id="btnOpcaoCores" class="btnDevMenuOption">🎨 Cores do Ambiente</button>
         <button id="btnOpcaoTempo" class="btnDevMenuOption">⏱️ Controle de Tempo</button>
         <button id="btnOpcaoClima" class="btnDevMenuOption">🌤️ Clima da Próx. Semana</button>
@@ -117,14 +126,60 @@ function criarInterfaceFerramentas(scene) {
     });
 
     // 3. Painéis de Conteúdo
+    painelDinheiro = criarPainelDinheiroHTML();
     painelCores = criarPainelCoresHTML();
     painelTempo = criarPainelTempoHTML();
     painelClima = criarPainelClimaHTML();
 
-    [painelCores, painelTempo, painelClima].forEach(p => document.body.appendChild(p));
+    [painelDinheiro, painelCores, painelTempo, painelClima].forEach(p => document.body.appendChild(p));
 
     // 4. Configuração dos Eventos
     setupEventosFerramentas(scene);
+}
+
+function criarPainelDinheiroHTML() {
+    const p = document.createElement("div");
+    p.id = "painelDevDinheiro";
+    p.style.cssText = `
+        position: absolute; bottom: 65px; right: 20px;
+        background-color: rgba(15, 23, 42, 0.98); border: 2px solid #38bdf8;
+        border-radius: 10px; padding: 15px; display: none; flex-direction: column;
+        gap: 12px; z-index: 101; color: #ffffff; font-family: Arial, sans-serif;
+        font-size: 13px; box-shadow: 0 8px 16px rgba(0,0,0,0.6); min-width: 260px;
+    `;
+    p.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 6px; font-weight: bold; color: #38bdf8;">
+            <span>💰 Gestão de Caixa (Dev)</span>
+            <button id="btnFecharDinheiro" style="background: none; border: none; color: #f87171; font-size: 16px; cursor: pointer; font-weight: bold;">✕</button>
+        </div>
+        <div>
+            <span style="color: #4ade80; font-weight: bold;">Adicionar Dinheiro:</span>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px;">
+                <button class="btnAddDinheiroDev" data-valor="10000" style="background: #1e293b; color: #4ade80; border: 1px solid #16a34a; border-radius: 4px; padding: 6px; cursor: pointer; font-weight: bold; font-size: 11px;">+ R$ 10.000</button>
+                <button class="btnAddDinheiroDev" data-valor="50000" style="background: #1e293b; color: #4ade80; border: 1px solid #16a34a; border-radius: 4px; padding: 6px; cursor: pointer; font-weight: bold; font-size: 11px;">+ R$ 50.000</button>
+                <button class="btnAddDinheiroDev" data-valor="100000" style="background: #1e293b; color: #4ade80; border: 1px solid #16a34a; border-radius: 4px; padding: 6px; cursor: pointer; font-weight: bold; font-size: 11px;">+ R$ 100.000</button>
+                <button class="btnAddDinheiroDev" data-valor="500000" style="background: #1e293b; color: #4ade80; border: 1px solid #16a34a; border-radius: 4px; padding: 6px; cursor: pointer; font-weight: bold; font-size: 11px;">+ R$ 500.000</button>
+            </div>
+            <div style="display: flex; gap: 6px; margin-top: 6px; align-items: center;">
+                <input type="number" id="inputAddDinheiro" step="1000" min="1" placeholder="Valor livre..." style="flex: 1; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 4px; padding: 5px 6px; outline: none;">
+                <button id="btnAplicarAddDinheiro" style="background: #16a34a; color: #fff; border: none; border-radius: 4px; padding: 6px 10px; cursor: pointer; font-weight: bold;">Injetar</button>
+            </div>
+        </div>
+        <div style="border-top: 1px solid #334155; padding-top: 10px;">
+            <span style="color: #f87171; font-weight: bold;">Retirar Dinheiro:</span>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px;">
+                <button class="btnRemDinheiroDev" data-valor="10000" style="background: #1e293b; color: #f87171; border: 1px solid #dc2626; border-radius: 4px; padding: 6px; cursor: pointer; font-weight: bold; font-size: 11px;">- R$ 10.000</button>
+                <button class="btnRemDinheiroDev" data-valor="50000" style="background: #1e293b; color: #f87171; border: 1px solid #dc2626; border-radius: 4px; padding: 6px; cursor: pointer; font-weight: bold; font-size: 11px;">- R$ 50.000</button>
+                <button class="btnRemDinheiroDev" data-valor="100000" style="background: #1e293b; color: #f87171; border: 1px solid #dc2626; border-radius: 4px; padding: 6px; cursor: pointer; font-weight: bold; font-size: 11px;">- R$ 100.000</button>
+                <button class="btnRemDinheiroDev" data-valor="500000" style="background: #1e293b; color: #f87171; border: 1px solid #dc2626; border-radius: 4px; padding: 6px; cursor: pointer; font-weight: bold; font-size: 11px;">- R$ 500.000</button>
+            </div>
+            <div style="display: flex; gap: 6px; margin-top: 6px; align-items: center;">
+                <input type="number" id="inputRemDinheiro" step="1000" min="1" placeholder="Valor livre..." style="flex: 1; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 4px; padding: 5px 6px; outline: none;">
+                <button id="btnAplicarRemDinheiro" style="background: #dc2626; color: #fff; border: none; border-radius: 4px; padding: 6px 10px; cursor: pointer; font-weight: bold;">Debitar</button>
+            </div>
+        </div>
+    `;
+    return p;
 }
 
 function criarPainelCoresHTML() {
@@ -243,6 +298,15 @@ function setupEventosFerramentas(scene) {
     btnFerramentas.addEventListener("click", () => {
         const estaAberto = menuFerramentas.style.display === "flex";
         menuFerramentas.style.display = estaAberto ? "none" : "flex";
+        painelDinheiro.style.display = "none";
+        painelCores.style.display = "none";
+        painelTempo.style.display = "none";
+        painelClima.style.display = "none";
+    });
+
+    document.getElementById("btnOpcaoDinheiro").addEventListener("click", () => {
+        menuFerramentas.style.display = "none";
+        painelDinheiro.style.display = "flex";
         painelCores.style.display = "none";
         painelTempo.style.display = "none";
         painelClima.style.display = "none";
@@ -250,6 +314,7 @@ function setupEventosFerramentas(scene) {
 
     document.getElementById("btnOpcaoCores").addEventListener("click", () => {
         menuFerramentas.style.display = "none";
+        painelDinheiro.style.display = "none";
         painelCores.style.display = "flex";
         painelTempo.style.display = "none";
         painelClima.style.display = "none";
@@ -258,6 +323,7 @@ function setupEventosFerramentas(scene) {
 
     document.getElementById("btnOpcaoTempo").addEventListener("click", () => {
         menuFerramentas.style.display = "none";
+        painelDinheiro.style.display = "none";
         painelCores.style.display = "none";
         painelTempo.style.display = "flex";
         painelClima.style.display = "none";
@@ -269,14 +335,47 @@ function setupEventosFerramentas(scene) {
 
     document.getElementById("btnOpcaoClima").addEventListener("click", () => {
         menuFerramentas.style.display = "none";
+        painelDinheiro.style.display = "none";
         painelCores.style.display = "none";
         painelTempo.style.display = "none";
         painelClima.style.display = "flex";
     });
 
+    document.getElementById("btnFecharDinheiro").addEventListener("click", () => { painelDinheiro.style.display = "none"; });
     document.getElementById("btnFecharCores").addEventListener("click", () => { painelCores.style.display = "none"; });
     document.getElementById("btnFecharTempo").addEventListener("click", () => { painelTempo.style.display = "none"; });
     document.getElementById("btnFecharClima").addEventListener("click", () => { painelClima.style.display = "none"; });
+
+    // Eventos de Gestão de Dinheiro
+    painelDinheiro.querySelectorAll(".btnAddDinheiroDev").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const val = parseFloat(btn.getAttribute("data-valor"));
+            if (!isNaN(val) && val > 0) adicionarDinheiro(val);
+        });
+    });
+
+    document.getElementById("btnAplicarAddDinheiro").addEventListener("click", () => {
+        const val = parseFloat(document.getElementById("inputAddDinheiro").value);
+        if (!isNaN(val) && val > 0) {
+            adicionarDinheiro(val);
+            document.getElementById("inputAddDinheiro").value = "";
+        }
+    });
+
+    painelDinheiro.querySelectorAll(".btnRemDinheiroDev").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const val = parseFloat(btn.getAttribute("data-valor"));
+            if (!isNaN(val) && val > 0) gastarDinheiro(val);
+        });
+    });
+
+    document.getElementById("btnAplicarRemDinheiro").addEventListener("click", () => {
+        const val = parseFloat(document.getElementById("inputRemDinheiro").value);
+        if (!isNaN(val) && val > 0) {
+            gastarDinheiro(val);
+            document.getElementById("inputRemDinheiro").value = "";
+        }
+    });
 
     // Eventos de Clima
     const botoesClima = painelClima.querySelectorAll(".btnClimaDev");
@@ -367,8 +466,29 @@ function sincronizarCoresAtuais(scene) {
     sincronizar("colorCorpoAdmin", "matCorpo");
 }
 
+// Calcula os limites dinâmicos de todo o terreno da ETA (Pátio base + terrenos comprados)
+function calcularLimitesAtuaisETA() {
+    let minX = -12.5;
+    let maxX = 12.5;
+    let minZ = -10.0;
+    let maxZ = 10.0;
+
+    if (Array.isArray(QUADRANTES_TERRENO)) {
+        QUADRANTES_TERRENO.forEach(q => {
+            if (q.comprado) {
+                if (q.xMin < minX) minX = q.xMin;
+                if (q.xMax > maxX) maxX = q.xMax;
+                if (q.zMin < minZ) minZ = q.zMin;
+                if (q.zMax > maxZ) maxZ = q.zMax;
+            }
+        });
+    }
+
+    return { minX, maxX, minZ, maxZ };
+}
+
 // ==========================================================
-// SISTEMA CARTESIANO DE ALTA PERFORMANCE (HTML A-H / 1-6)
+// SISTEMA CARTESIANO DINÂMICO E EXPANSÍVEL (HTML A-Z / 1-N)
 // ==========================================================
 export function criarSistemaCartesianoHTML(scene, groundInterno, tamanhoGrid) {
     removerSistemaCartesianoHTML(scene);
@@ -382,44 +502,57 @@ export function criarSistemaCartesianoHTML(scene, groundInterno, tamanhoGrid) {
     document.body.appendChild(containerCartesiano);
 
     elementosCartesianos = [];
-    const letras = ["A", "B", "C", "D", "E", "F", "G", "H"]; 
     const asfaltoPosX = groundInterno.position.x; 
     const asfaltoPosZ = groundInterno.position.z; 
 
-    // 1. Instanciar elementos das Letras (A-H) uma única vez
-    letras.forEach((letra, indexX) => {
-        const localX = 10.5 - (indexX * tamanhoGrid);
-        const posMundo = new BABYLON.Vector3(localX + asfaltoPosX, 0.1, -10.5 + asfaltoPosZ);
+    const { minX, maxX, minZ, maxZ } = calcularLimitesAtuaisETA();
 
-        const el = document.createElement("div");
-        el.innerText = letra;
-        el.style.cssText = `
-            position: absolute; transform: translateX(-50%); color: #ef4444;
-            font-family: Arial, sans-serif; font-weight: bold; font-size: 18px;
-            text-shadow: 1px 1px 2px #000; display: none;
-        `;
-        containerCartesiano.appendChild(el);
-        elementosCartesianos.push({ el, posMundo, offsetX: 0, offsetY: 10 });
-    });
+    const alfabeto = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"];
 
-    // 2. Instanciar elementos dos Números (1-6) uma única vez
-    let numeroAtual = 1;
-    for (let localZ = -7.5; localZ <= 7.5; localZ += tamanhoGrid) {
-        const posMundo = new BABYLON.Vector3(12.5 + asfaltoPosX, 0.1, localZ + asfaltoPosZ);
+    // 1. Gerar Colunas (Letras A, B, C...) cobrindo da margem do rio (A) em direção ao Oeste
+    let indexLetra = 0;
+    const zBordaInferior = minZ - 0.8; // Posiciona as letras na borda sul da ETA ativa
 
-        const el = document.createElement("div");
-        el.innerText = numeroAtual;
-        el.style.cssText = `
-            position: absolute; transform: translateY(-50%); color: #ef4444;
-            font-family: Arial, sans-serif; font-weight: bold; font-size: 18px;
-            text-shadow: 1px 1px 2px #000; display: none;
-        `;
-        containerCartesiano.appendChild(el);
-        elementosCartesianos.push({ el, posMundo, offsetX: 10, offsetY: 0 });
-        numeroAtual++;
+    for (let localX = 10.5; localX >= minX + 1.5; localX -= tamanhoGrid) {
+        if (localX <= maxX - 1.5) {
+            const posMundo = new BABYLON.Vector3(localX + asfaltoPosX, 0.1, zBordaInferior + asfaltoPosZ);
+            const letra = alfabeto[indexLetra] || `X${indexLetra}`;
+
+            const el = document.createElement("div");
+            el.innerText = letra;
+            el.style.cssText = `
+                position: absolute; transform: translateX(-50%); color: #ef4444;
+                font-family: Arial, sans-serif; font-weight: bold; font-size: 18px;
+                text-shadow: 1px 1px 2px #000; display: none;
+            `;
+            containerCartesiano.appendChild(el);
+            elementosCartesianos.push({ el, posMundo, offsetX: 0, offsetY: 10 });
+        }
+        indexLetra++;
     }
 
-    // 3. Função de atualização leve executada a cada frame (sem innerHTML = "")
+    // 2. Gerar Linhas (Números 1, 2, 3...) de baixo para cima acompanhando a expansão do terreno
+    let numeroLinha = 1;
+    const xBordaDireita = maxX + 0.8; // Posiciona os números na borda leste da ETA ativa
+
+    for (let localZ = -7.5; localZ <= maxZ - 1.5; localZ += tamanhoGrid) {
+        if (localZ >= minZ + 1.5) {
+            const posMundo = new BABYLON.Vector3(xBordaDireita + asfaltoPosX, 0.1, localZ + asfaltoPosZ);
+
+            const el = document.createElement("div");
+            el.innerText = numeroLinha;
+            el.style.cssText = `
+                position: absolute; transform: translateY(-50%); color: #ef4444;
+                font-family: Arial, sans-serif; font-weight: bold; font-size: 18px;
+                text-shadow: 1px 1px 2px #000; display: none;
+            `;
+            containerCartesiano.appendChild(el);
+            elementosCartesianos.push({ el, posMundo, offsetX: 10, offsetY: 0 });
+        }
+        numeroLinha++;
+    }
+
+    // 3. Atualiza as posições da HUD cartesiana a cada frame
     function atualizarPosicoes() {
         if (!containerCartesiano || !scene.activeCamera) return;
 

@@ -3,6 +3,7 @@ import { createBombaAgua } from './Modelos 3D/bomba-agua.js';
 import { createCaixaAgua } from './Modelos 3D/caixa-agua.js';
 import { 
     isDevModeActive, 
+    isDevInterfaceActive,
     registrarCliqueConstruir, 
     setupDevButton, 
     criarSistemaCartesianoHTML, 
@@ -24,29 +25,38 @@ import { adicionarConsumoEstrutura, removerConsumoEstrutura } from './sistema-en
 import { registrarGastoConstrucao } from './relatorio.js';
 import { isPosicaoEmQuadranteComprado } from './expandirTerreno.js';
 
-// Função auxiliar isolada para validar as regras de posicionamento da construção
+function ehPisoValidoETA(mesh, groundInterno) {
+    if (!mesh) return false;
+    return mesh === groundInterno || 
+           mesh.name === "pisoExpansao" || 
+           (mesh.name && mesh.name.startsWith("piso_expansao_"));
+}
+
 function validarPosicaoConstrucao(snapLocalX, snapLocalZ, margemPredio, itemSelecionado, scene, groundInterno) {
     const asfaltoPosX = groundInterno.position.x;
     const asfaltoPosZ = groundInterno.position.z;
 
     const dentroDaAreaBaseX = (snapLocalX - margemPredio) >= -12.5 && (snapLocalX + margemPredio) <= 12.5;
     const dentroDaAreaBaseZ = (snapLocalZ - margemPredio) >= -10 && (snapLocalZ + margemPredio) <= 10;
+    const ehAreaBase = dentroDaAreaBaseX && dentroDaAreaBaseZ;
 
     const emQuadranteComprado = typeof isPosicaoEmQuadranteComprado === 'function' && isPosicaoEmQuadranteComprado(snapLocalX, snapLocalZ);
-    const dentroDaAreaPermitida = (dentroDaAreaBaseX && dentroDaAreaBaseZ) || emQuadranteComprado;
+    const dentroDaAreaPermitida = ehAreaBase || emQuadranteComprado;
 
-    const ehZonaRestritaA1H2 = snapLocalZ <= -4.0;
-    const ehZonaAdminF4H4 = (Math.abs(snapLocalZ - 1.5) < 0.1 && snapLocalX <= -4.0 && snapLocalX >= -11.0);
-    const ehZonaAdmin = (snapLocalZ >= -2.0 && snapLocalZ <= 2.0 && snapLocalX <= -4.0 && snapLocalX >= -11.0);
-    const ehZonaObrasParalela = (snapLocalX >= -6.0 && snapLocalX <= 1.0 && snapLocalZ >= 3.0 && snapLocalZ <= 9.0);
+    // --- REGRAS ATUALIZADAS DE ZONAS PROIBIDAS (ÁREA BASE) ---
+    // A1 até H2 (Abrange as linhas 1 e 2 em toda a largura X)
+    const ehZonaRestritaA1H2 = ehAreaBase && (snapLocalZ <= -3.0);
+    
+    // F1 até H6 (Abrange as colunas F, G e H em toda a profundidade Z)
+    const ehZonaRestritaF1H6 = ehAreaBase && (snapLocalX <= -3.0);
 
+    // Regra da Bomba d'água: permite apenas na beirada do rio (coluna local X = 10.5)
     const ehBeiradaRio = (Math.abs(snapLocalX - 10.5) < 0.1); 
     const restricaoBombaAgua = (itemSelecionado === "bomba_agua" && !ehBeiradaRio);
 
     const posX = snapLocalX + asfaltoPosX;
     const posZ = snapLocalZ + asfaltoPosZ;
 
-    // Busca em meshes e TransformNodes para evitar sobreposição
     const todosOsNos = scene.meshes.concat(scene.transformNodes || []);
     const jaTemPredio = todosOsNos.some(m => {
         if (m.name !== "predio") return false;
@@ -54,7 +64,7 @@ function validarPosicaoConstrucao(snapLocalX, snapLocalZ, margemPredio, itemSele
         return Math.abs(posMundo.x - posX) < 1.0 && Math.abs(posMundo.z - posZ) < 1.0;
     });
 
-    if (!dentroDaAreaPermitida || ehZonaRestritaA1H2 || ehZonaAdminF4H4 || ehZonaAdmin || ehZonaObrasParalela || jaTemPredio || restricaoBombaAgua) {
+    if (!dentroDaAreaPermitida || ehZonaRestritaA1H2 || ehZonaRestritaF1H6 || jaTemPredio || restricaoBombaAgua) {
         return false;
     }
     return true;
@@ -65,15 +75,38 @@ export function setupBuildSystem(scene, groundInterno) {
     let modoDesconstruir = false; 
     const tamanhoGrid = 3; 
 
-    const matAsfaltoNormal = groundInterno.material;
-
     setupDevButton(scene, groundInterno, tamanhoGrid, () => modoConstrucao);
 
-    const matGridConstrucao = new BABYLON.GridMaterial("matGridConstrucao", scene);
-    matGridConstrucao.mainColor = new BABYLON.Color3(0.1, 0.18, 0.28); 
-    matGridConstrucao.lineColor = new BABYLON.Color3(0.2, 0.75, 1.0);  
-    matGridConstrucao.gridRatio = tamanhoGrid;                                  
-    matGridConstrucao.opacity = 0.98; 
+    const matGridConstrucaoBase = new BABYLON.GridMaterial("matGridConstrucaoBase", scene);
+    matGridConstrucaoBase.mainColor = new BABYLON.Color3(0.1, 0.18, 0.28); 
+    matGridConstrucaoBase.lineColor = new BABYLON.Color3(0.18, 0.55, 0.85);  
+    matGridConstrucaoBase.gridRatio = tamanhoGrid;                                  
+    matGridConstrucaoBase.opacity = 0.98; 
+    matGridConstrucaoBase.majorUnitFrequency = 0; 
+
+    function atualizarMateriaisGramaEPisos(exibirGrid) {
+        const todosPisos = scene.meshes.filter(m => ehPisoValidoETA(m, groundInterno));
+        todosPisos.forEach(piso => {
+            if (exibirGrid) {
+                if (!piso.matOriginalGuarda) {
+                    piso.matOriginalGuarda = piso.material;
+                }
+
+                if (!piso.matGridCustom) {
+                    const matGrid = matGridConstrucaoBase.clone("gridMat_" + piso.name);
+                    const offsetX = piso.position.x - groundInterno.position.x;
+                    const offsetZ = piso.position.z - groundInterno.position.z;
+                    matGrid.gridOffset = new BABYLON.Vector3(offsetX, 0, offsetZ);
+                    piso.matGridCustom = matGrid;
+                }
+                piso.material = piso.matGridCustom;
+            } else {
+                if (piso.matOriginalGuarda) {
+                    piso.material = piso.matOriginalGuarda;
+                }
+            }
+        });
+    }
 
     const cursorConstrucao = BABYLON.MeshBuilder.CreateBox("cursor", { width: tamanhoGrid, height: 0.06, depth: tamanhoGrid }, scene);
     cursorConstrucao.position.y = 0.06; 
@@ -100,9 +133,9 @@ export function setupBuildSystem(scene, groundInterno) {
 
     setOnItemSelectCallback((item) => {
         if (item) {
-            groundInterno.material = matGridConstrucao;
+            atualizarMateriaisGramaEPisos(true);
         } else {
-            groundInterno.material = matAsfaltoNormal;
+            atualizarMateriaisGramaEPisos(false);
             cursorConstrucao.isVisible = false;
         }
     });
@@ -121,12 +154,14 @@ export function setupBuildSystem(scene, groundInterno) {
                 btnConstruir.style.background = "#4CAF50";
                 btnDesconstruir.style.background = "rgba(0, 0, 0, 0.7)";
 
-                if (isDevModeActive()) {
+                atualizarMateriaisGramaEPisos(true);
+
+                if (isDevInterfaceActive()) {
                     criarSistemaCartesianoHTML(scene, groundInterno, tamanhoGrid);
                 }
             } else {
                 cursorConstrucao.isVisible = false;
-                groundInterno.material = matAsfaltoNormal; 
+                atualizarMateriaisGramaEPisos(false);
                 btnDesconstruir.style.display = "none";
                 btnConstruir.style.background = "rgba(0, 0, 0, 0.7)";
 
@@ -140,7 +175,7 @@ export function setupBuildSystem(scene, groundInterno) {
                 btnConstruir.style.background = "rgba(0, 0, 0, 0.7)";
                 btnDesconstruir.style.background = "#f44336"; 
                 toggleMenuConstrucao(false);
-                groundInterno.material = matAsfaltoNormal;
+                atualizarMateriaisGramaEPisos(false);
             }
         });
     }
@@ -151,12 +186,12 @@ export function setupBuildSystem(scene, groundInterno) {
         switch (pointerInfo.type) {
             case BABYLON.PointerEventTypes.POINTERMOVE:
                 if (!modoDesconstruir) {
-                    if (!isDevModeActive() && !itemSelecionado) {
+                    if (!itemSelecionado) {
                         cursorConstrucao.isVisible = false;
                         return;
                     }
 
-                    const pickResult = scene.pick(scene.pointerX, scene.pointerY, (mesh) => mesh === groundInterno);
+                    const pickResult = scene.pick(scene.pointerX, scene.pointerY, (mesh) => ehPisoValidoETA(mesh, groundInterno));
 
                     if (pickResult.hit) {
                         cursorConstrucao.isVisible = true;
@@ -183,7 +218,7 @@ export function setupBuildSystem(scene, groundInterno) {
                         const custoAtual = CUSTOS_ESTRUTURAS[itemSelecionado] || 0;
                         const semDinheiro = !podePagar(custoAtual);
 
-                        if (!isDevModeActive() && (!posicaoValida || limiteAtingido || semDinheiro)) {
+                        if (!posicaoValida || limiteAtingido || semDinheiro) {
                             cursorConstrucao.material = matCursorInvalido;
                         } else {
                             cursorConstrucao.material = matCursorValido;
@@ -223,28 +258,25 @@ export function setupBuildSystem(scene, groundInterno) {
 
                         const posicaoAindaValida = validarPosicaoConstrucao(localX, localZ, margemPredio, itemSelecionado, scene, groundInterno);
 
-                        if (!isDevModeActive()) {
-                            if (!itemSelecionado || !posicaoAindaValida) {
-                                cursorConstrucao.material = matCursorInvalido;
-                                return;
-                            }
-                            
-                            if (!podeConstruir()) {
-                                exibirPopUpLimite();
-                                return;
-                            }
+                        if (!itemSelecionado || !posicaoAindaValida) {
+                            cursorConstrucao.material = matCursorInvalido;
+                            return;
+                        }
+                        
+                        if (!podeConstruir()) {
+                            exibirPopUpLimite();
+                            return;
+                        }
 
-                            const custo = CUSTOS_ESTRUTURAS[itemSelecionado] || 0;
-                            if (!podePagar(custo)) {
-                                exibirPopUpSemDinheiro();
-                                return;
-                            }
+                        const custo = CUSTOS_ESTRUTURAS[itemSelecionado] || 0;
+                        if (!podePagar(custo)) {
+                            exibirPopUpSemDinheiro();
+                            return;
                         }
 
                         if (posicaoAindaValida) {
                             const posX = cursorConstrucao.position.x;
                             const posZ = cursorConstrucao.position.z;
-                            const custo = CUSTOS_ESTRUTURAS[itemSelecionado] || 0;
 
                             let novaEstrutura = null;
 
@@ -259,18 +291,14 @@ export function setupBuildSystem(scene, groundInterno) {
                                 novaEstrutura.tipoItem = itemSelecionado;
                             }
 
-                            if (!isDevModeActive()) {
-                                gastarDinheiro(custo);
-                                registrarGastoConstrucao(custo);
-                                adicionarConstrucao();
-                            }
+                            gastarDinheiro(custo);
+                            registrarGastoConstrucao(custo);
+                            adicionarConstrucao();
 
                             adicionarEstruturaAgua(itemSelecionado);
                             adicionarConsumoEstrutura(itemSelecionado);
 
                             cursorConstrucao.material = matCursorInvalido;
-
-                            console.log(`[CONSTRUÇÃO] Estrutura registrada: ${itemSelecionado} em X: ${posX}, Z: ${posZ}`);
                         }
                     } 
                     else if (modoDesconstruir) {
