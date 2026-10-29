@@ -15,7 +15,6 @@ function criarCentroAdministrativo(scene, centroX, centroZ) {
     const centroAdminHitbox = BABYLON.MeshBuilder.CreateBox("centroAdminHitbox", { width: 5.2, height: 2.8, depth: 4.2 }, scene);
     centroAdminHitbox.position = new BABYLON.Vector3(centroX, 1.4, centroZ); 
     centroAdminHitbox.isVisible = false; 
-    centroAdminHitbox.physicsImpostor = new BABYLON.PhysicsImpostor(centroAdminHitbox, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 0, friction: 1 }, scene);
 
     const pecasPredio = [];
     
@@ -63,7 +62,6 @@ function criarCentroAdministrativo(scene, centroX, centroZ) {
 function criarTerrenoEAsfalto(scene) {
     const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 100, height: 100 }, scene);
     ground.position.y = 0.01; 
-    ground.physicsImpostor = new BABYLON.PhysicsImpostor(ground, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 0, friction: 1 }, scene);
 
     const asfalto = BABYLON.MeshBuilder.CreateGround("asfalto", { width: 25, height: 20 }, scene);
     asfalto.position = new BABYLON.Vector3(5, 0.02, 0); 
@@ -84,7 +82,6 @@ function criarMurosEPortao(scene) {
         const muro = BABYLON.MeshBuilder.CreateBox(nome, { width: largura, height: 2.2, depth: profundidade }, scene);
         muro.position = new BABYLON.Vector3(cX, 1.1, cZ); 
         muro.material = matMuro;
-        muro.physicsImpostor = new BABYLON.PhysicsImpostor(muro, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 0 }, scene);
         return muro;
     };
 
@@ -106,18 +103,14 @@ function criarMurosEPortao(scene) {
     const portaoEsq = BABYLON.MeshBuilder.CreateBox("portaoEsq", { width: 2, height: 2.2, depth: 0.15 }, scene);
     portaoEsq.position = new BABYLON.Vector3(4, 1.1, -10); 
     portaoEsq.material = matPortao;
-    portaoEsq.physicsImpostor = new BABYLON.PhysicsImpostor(portaoEsq, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 0 }, scene);
 
     const portaoDir = BABYLON.MeshBuilder.CreateBox("portaoDir", { width: 2, height: 2.2, depth: 0.15 }, scene);
     portaoDir.position = new BABYLON.Vector3(6, 1.1, -10); 
     portaoDir.material = matPortao;
-    portaoDir.physicsImpostor = new BABYLON.PhysicsImpostor(portaoDir, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 0 }, scene);
 }
 
 export function createScene(engine, canvas) {
     const scene = new BABYLON.Scene(engine);
-    
-    scene.enablePhysics(new BABYLON.Vector3(0, -9.81, 0), new BABYLON.CannonJSPlugin());
 
     setupIluminacao(scene);
 

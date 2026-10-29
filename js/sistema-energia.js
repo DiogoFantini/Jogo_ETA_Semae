@@ -1,4 +1,4 @@
-import { atualizarConsumoEnergia } from './hud.js';
+﻿import { atualizarConsumoEnergia } from './hud.js';
 import { CONFIG_BOMBA_AGUA, CONFIG_CAIXA_AGUA } from './variaveis-importantes.js';
 
 // ==========================================================

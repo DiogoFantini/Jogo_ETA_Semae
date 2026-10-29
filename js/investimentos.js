@@ -1,4 +1,4 @@
-import { formatarDinheiro, gastarDinheiro, exibirPopUpAviso, definirLimiteTerreno, getTerrenoMax } from './condicoes.js';
+﻿import { formatarDinheiro, gastarDinheiro, exibirPopUpAviso, definirLimiteTerreno, getTerrenoMax } from './condicoes.js';
 import { aumentarLimiteContratos, atualizarMetaHUDContratos } from './contratos.js';
 import { exibirBotaoComprarTerreno } from './hud.js';
 

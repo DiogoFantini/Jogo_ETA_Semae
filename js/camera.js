@@ -1,4 +1,4 @@
-// Controle de estado: a câmera começa desativada até a definição do nome da ETA
+﻿// Controle de estado: a câmera começa desativada até a definição do nome da ETA
 let cameraAtiva = false;
 
 export function ativarCamera() {

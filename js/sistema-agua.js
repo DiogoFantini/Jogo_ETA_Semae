@@ -1,4 +1,4 @@
-import { registerGameAnimation, getDataAtual } from './tempo.js';
+﻿import { registerGameAnimation, getDataAtual } from './tempo.js';
 import { atualizarAguaDistribuida } from './hud.js';
 import { CONFIG_BOMBA_AGUA, CONFIG_CAIXA_AGUA } from './variaveis-importantes.js';
 import { getEventoClimaticoAtual } from './clima.js';
@@ -10,6 +10,8 @@ let totalAguaDistribuida = 0;
 let quantidadeBombas = 0;
 let quantidadeCaixas = 0;
 let ultimoTextoHUD = ""; // Cache para evitar atualizações redundantes no DOM
+let ultimaVazaoCalculada = 0;
+let ultimoClimaId = "";
 
 const MINUTOS_INGAME_POR_SEGUNDO_REAL = 2.4;
 
@@ -58,38 +60,43 @@ export function iniciarSistemaAgua(scene) {
     registerGameAnimation(scene, (dt) => {
         const clima = getEventoClimaticoAtual();
         const multSeca = clima ? clima.multiplicadorVazaoBombas : 1.0;
-        const ehChuva = clima && clima.id === "chuva_forte";
+        const climaId = clima ? clima.id : "normal";
+        const ehChuva = climaId === "chuva_forte";
+        const horaAtual = getDataAtual().getHours();
+        const ehHorarioPico = horaAtual >= 7 && horaAtual < 18;
 
+        let multiplicadorCaixa = 1.0;
+        if (ehHorarioPico && quantidadeCaixas > 0) {
+            multiplicadorCaixa += quantidadeCaixas * CONFIG_CAIXA_AGUA.bonusDistribuicaoDia;
+        }
+
+        let vazaoHora = 0;
         if (quantidadeBombas > 0) {
             const minutosInGamePassados = dt * MINUTOS_INGAME_POR_SEGUNDO_REAL;
-            const horaAtual = getDataAtual().getHours();
-            const ehHorarioPico = horaAtual >= 7 && horaAtual < 18;
-
-            let multiplicadorCaixa = 1.0;
-            if (ehHorarioPico && quantidadeCaixas > 0) {
-                multiplicadorCaixa += quantidadeCaixas * CONFIG_CAIXA_AGUA.bonusDistribuicaoDia;
-            }
-
             const aguaProduzidaNoFrame = quantidadeBombas * (CONFIG_BOMBA_AGUA.vazaoMinuto * multSeca) * minutosInGamePassados;
             totalAguaDistribuida += aguaProduzidaNoFrame * multiplicadorCaixa;
+            vazaoHora = quantidadeBombas * CONFIG_BOMBA_AGUA.vazaoHora * multSeca * multiplicadorCaixa;
         }
 
-        // Formatação do valor para o HUD
-        const vazaoHora = getVazaoAtualHora();
-        let valorFormatado = vazaoHora % 1 === 0 
-            ? `${vazaoHora} m³/h` 
-            : `${vazaoHora.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} m³/h`;
+        // Só recalcula e atualiza a formatação do HUD se vazão ou clima mudarem
+        if (vazaoHora !== ultimaVazaoCalculada || climaId !== ultimoClimaId) {
+            ultimaVazaoCalculada = vazaoHora;
+            ultimoClimaId = climaId;
 
-        if (multSeca < 1.0) {
-            valorFormatado += " <span style='color: #fb923c; font-size: 13px;'>(🌵 -30% Seca)</span>";
-        } else if (ehChuva) {
-            valorFormatado += " <span style='color: #60a5fa; font-size: 13px;'>(🌧️ Manutenção +50%/h)</span>";
-        }
+            let valorFormatado = vazaoHora % 1 === 0 
+                ? `${vazaoHora} m³/h` 
+                : `${vazaoHora.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} m³/h`;
 
-        // Só atualiza o elemento DOM se a string tiver mudado
-        if (valorFormatado !== ultimoTextoHUD) {
-            ultimoTextoHUD = valorFormatado;
-            atualizarAguaDistribuida(valorFormatado);
+            if (multSeca < 1.0) {
+                valorFormatado += " <span style='color: #fb923c; font-size: 13px;'>(🌵 -30% Seca)</span>";
+            } else if (ehChuva) {
+                valorFormatado += " <span style='color: #60a5fa; font-size: 13px;'>(🌧️ Manutenção +50%/h)</span>";
+            }
+
+            if (valorFormatado !== ultimoTextoHUD) {
+                ultimoTextoHUD = valorFormatado;
+                atualizarAguaDistribuida(valorFormatado);
+            }
         }
     });
 }

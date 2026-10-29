@@ -1,4 +1,4 @@
-import { createScene } from './scene.js';
+﻿import { createScene } from './scene.js';
 
 window.addEventListener('DOMContentLoaded', () => {
     // 1. Criar e exibir a tela de carregamento antes de inicializar a engine/cena

@@ -1,4 +1,4 @@
-import { createSetorTI } from './setorTI.js';
+﻿import { createSetorTI } from './setorTI.js';
 
 export function createDecorations(scene) {
     const centroX = -2.5;

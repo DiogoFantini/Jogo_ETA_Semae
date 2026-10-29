@@ -1,11 +1,11 @@
-import { atualizarRelogioHUD } from './hud.js';
+﻿import { atualizarRelogioHUD } from './hud.js';
 
 // ==========================================================
 // CONSTANTES E ESTADO DO TEMPO DO JOGO
 // ==========================================================
 export const DATA_INICIAL_JOGO = new Date(2024, 0, 1, 7, 0, 0);
 
-let dataAtual = new Date(DATA_INICIAL_JOGO.getTime()); 
+const dataAtual = new Date(DATA_INICIAL_JOGO.getTime()); 
 let multiplicadorVelocidade = 1; // 1x, 5x, 10x, 150x
 let emPausa = false;
 let relogioIniciado = false;
@@ -22,6 +22,9 @@ const DIAS_SEMANA_PT = [
     "Sexta-Feira",
     "Sábado"
 ];
+
+let ultimoMinutoExibido = -1;
+let textoRelogioCache = "";
 
 // ==========================================================
 // FUNÇÕES UTILITÁRIAS DE DATA E FORMATO
@@ -43,8 +46,13 @@ export function formatarDataHoraRelogio(d) {
     return `${horas}:${minutos} - ${diaSemana} - ${dia}/${mes}/${ano}`;
 }
 
-export function atualizarExibicao() {
-    atualizarRelogioHUD(formatarDataHoraRelogio(dataAtual));
+export function atualizarExibicao(forcar = false) {
+    const minutoAtual = dataAtual.getMinutes();
+    if (forcar || minutoAtual !== ultimoMinutoExibido) {
+        ultimoMinutoExibido = minutoAtual;
+        textoRelogioCache = formatarDataHoraRelogio(dataAtual);
+        atualizarRelogioHUD(textoRelogioCache);
+    }
 }
 
 // ==========================================================
@@ -54,7 +62,7 @@ export function iniciarRelogio(scene) {
     if (relogioIniciado || !scene) return;
     relogioIniciado = true;
 
-    atualizarExibicao();
+    atualizarExibicao(true);
 
     scene.onBeforeRenderObservable.add(() => {
         scene.particlesEnabled = !emPausa;
@@ -64,8 +72,8 @@ export function iniciarRelogio(scene) {
             const realDt = Math.min(scene.getEngine().getDeltaTime() / 1000, 0.1);
             const avancoInGameMs = realDt * FATOR_TEMPO_BASE * multiplicadorVelocidade * 1000;
             
-            dataAtual = new Date(dataAtual.getTime() + avancoInGameMs);
-            atualizarExibicao();
+            dataAtual.setTime(dataAtual.getTime() + avancoInGameMs);
+            atualizarExibicao(false);
         }
     });
 }
@@ -76,12 +84,15 @@ export function iniciarRelogio(scene) {
 export function pausarRelogio() { emPausa = true; }
 export function despausarRelogio() { emPausa = false; }
 export function setVelocidadeTempo(multiplicador) { multiplicadorVelocidade = multiplicador; emPausa = false; }
-export function setHorarioJogo(horas, minutos) { dataAtual.setHours(horas, minutos, 0, 0); atualizarExibicao(); }
+export function setHorarioJogo(horas, minutos) { 
+    dataAtual.setHours(horas, minutos, 0, 0); 
+    atualizarExibicao(true); 
+}
 export function getVelocidadeAtual() { return multiplicadorVelocidade; }
 export function getVelocidadeTempo() { return multiplicadorVelocidade; }
 export function isPausado() { return emPausa; }
 export function isRelogioPausado() { return emPausa; }
-export function getDataAtual() { return new Date(dataAtual.getTime()); }
+export function getDataAtual() { return dataAtual; }
 
 export function getGameDeltaTime(scene) {
     if (emPausa || !scene) return 0;

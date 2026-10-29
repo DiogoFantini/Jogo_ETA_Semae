@@ -1,4 +1,4 @@
-import { toggleMenuConstrucao, itemSelecionado, setOnItemSelectCallback } from './hud.js';
+﻿import { toggleMenuConstrucao, itemSelecionado, setOnItemSelectCallback } from './hud.js';
 import { createBombaAgua } from './Modelos 3D/bomba-agua.js';
 import { createCaixaAgua } from './Modelos 3D/caixa-agua.js';
 import { 
@@ -24,6 +24,9 @@ import { adicionarEstruturaAgua, removerEstruturaAgua } from './sistema-agua.js'
 import { adicionarConsumoEstrutura, removerConsumoEstrutura } from './sistema-energia.js';
 import { registrarGastoConstrucao } from './relatorio.js';
 import { isPosicaoEmQuadranteComprado } from './expandirTerreno.js';
+
+// Cache de estruturas construídas para validação rápida O(K) em vez de O(N) varrendo a cena inteira
+const estruturasConstruidas = new Set();
 
 function ehPisoValidoETA(mesh, groundInterno) {
     if (!mesh) return false;
@@ -57,12 +60,19 @@ function validarPosicaoConstrucao(snapLocalX, snapLocalZ, margemPredio, itemSele
     const posX = snapLocalX + asfaltoPosX;
     const posZ = snapLocalZ + asfaltoPosZ;
 
-    const todosOsNos = scene.meshes.concat(scene.transformNodes || []);
-    const jaTemPredio = todosOsNos.some(m => {
-        if (m.name !== "predio") return false;
-        const posMundo = m.getAbsolutePosition ? m.getAbsolutePosition() : m.position;
-        return Math.abs(posMundo.x - posX) < 1.0 && Math.abs(posMundo.z - posZ) < 1.0;
-    });
+    // Checagem otimizada usando a lista de estruturas ativas
+    let jaTemPredio = false;
+    for (const m of estruturasConstruidas) {
+        if (!m || m.isDisposed()) {
+            estruturasConstruidas.delete(m);
+            continue;
+        }
+        const posMundo = m.position;
+        if (Math.abs(posMundo.x - posX) < 1.0 && Math.abs(posMundo.z - posZ) < 1.0) {
+            jaTemPredio = true;
+            break;
+        }
+    }
 
     if (!dentroDaAreaPermitida || ehZonaRestritaA1H2 || ehZonaRestritaF1H6 || jaTemPredio || restricaoBombaAgua) {
         return false;
@@ -235,7 +245,7 @@ export function setupBuildSystem(scene, groundInterno) {
                             noRaiz = noRaiz.parent;
                         }
 
-                        const posMundo = noRaiz.getAbsolutePosition();
+                        const posMundo = noRaiz.getAbsolutePosition ? noRaiz.getAbsolutePosition() : noRaiz.position;
 
                         cursorConstrucao.isVisible = true;
                         cursorConstrucao.position.x = posMundo.x;
@@ -289,6 +299,7 @@ export function setupBuildSystem(scene, groundInterno) {
                             if (novaEstrutura) {
                                 novaEstrutura.name = "predio"; 
                                 novaEstrutura.tipoItem = itemSelecionado;
+                                estruturasConstruidas.add(novaEstrutura);
                             }
 
                             gastarDinheiro(custo);
@@ -310,6 +321,7 @@ export function setupBuildSystem(scene, groundInterno) {
                             }
 
                             const tipoItem = noRaiz.tipoItem;
+                            estruturasConstruidas.delete(noRaiz);
 
                             if (noRaiz.physicsImpostor) {
                                 noRaiz.physicsImpostor.dispose();

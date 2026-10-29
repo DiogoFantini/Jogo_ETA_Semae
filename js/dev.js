@@ -1,4 +1,4 @@
-import { 
+﻿import { 
     setVelocidadeTempo, 
     setHorarioJogo, 
     getVelocidadeAtual, 
@@ -552,13 +552,17 @@ export function criarSistemaCartesianoHTML(scene, groundInterno, tamanhoGrid) {
         numeroLinha++;
     }
 
-    // 3. Atualiza as posições da HUD cartesiana a cada frame
+    // 3. Atualiza as posições da HUD cartesiana apenas quando a câmera mover
+    let ultimaMatrizTransformacao = null;
     function atualizarPosicoes() {
         if (!containerCartesiano || !scene.activeCamera) return;
-
+        const transformMatrix = scene.getTransformMatrix();
+        const m = transformMatrix.m;
+        if (ultimaMatrizTransformacao && m[0] === ultimaMatrizTransformacao[0] && m[5] === ultimaMatrizTransformacao[5] && m[10] === ultimaMatrizTransformacao[10] && m[12] === ultimaMatrizTransformacao[12] && m[13] === ultimaMatrizTransformacao[13] && m[14] === ultimaMatrizTransformacao[14]) return;
+        if (!ultimaMatrizTransformacao) ultimaMatrizTransformacao = new Float32Array(16);
+        ultimaMatrizTransformacao.set(m);
         const engine = scene.getEngine();
         const viewport = scene.activeCamera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight());
-        const transformMatrix = scene.getTransformMatrix();
 
         elementosCartesianos.forEach(item => {
             const projecao = BABYLON.Vector3.Project(

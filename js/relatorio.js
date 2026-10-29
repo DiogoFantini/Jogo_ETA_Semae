@@ -1,4 +1,4 @@
-import { registerGameAnimation, getDataAtual, getDiasDecorridos } from './tempo.js';
+﻿import { registerGameAnimation, getDataAtual, getDiasDecorridos } from './tempo.js';
 import { formatarDinheiro, gastarDinheiro, exibirPopUpAviso } from './condicoes.js';
 import { getConsumoTotalEnergia } from './sistema-energia.js';
 import { getQuantidadeBombas, getQuantidadeCaixas, getAguaDistribuida } from './sistema-agua.js';
@@ -34,9 +34,12 @@ export function getHistoricoRelatorios() { return historicoRelatoriosSemanais; }
 export function setupSistemaRelatorio(scene) {
     aguaAcumuladaSemanaInicio = getAguaDistribuida();
 
+    let ultimoDiaChecado = -1;
     registerGameAnimation(scene, () => {
         const data = getDataAtual();
         const diasDecorridos = getDiasDecorridos(data);
+        if (diasDecorridos === ultimoDiaChecado) return;
+        ultimoDiaChecado = diasDecorridos;
         const semanaAtual = Math.floor(diasDecorridos / 7);
 
         // Dispara o fechamento do relatório a cada virada de semana

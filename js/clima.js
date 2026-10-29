@@ -1,4 +1,4 @@
-import { registerGameAnimation, getDataAtual, getDiasDecorridos } from './tempo.js';
+﻿import { registerGameAnimation, getDataAtual, getDiasDecorridos } from './tempo.js';
 import { exibirPopUpAviso } from './condicoes.js';
 
 // ==========================================================
@@ -65,11 +65,6 @@ let grupoOndas3D = null;
 let ondas3DMeshes = [];
 let animandoCalor3D = false;
 
-let edicaoJornalAtual = {
-    semana: 1,
-    titulo: "Edição de Inauguração da ETA",
-    climaPrevisto: EVENTOS_CLIMATICOS.normal
-};
 
 // ==========================================================
 // CONSULTA DE CLIMA (AJUSTADO PARA EVENTOS ATIVOS)
@@ -98,7 +93,6 @@ export function setupSistemaClima(scene) {
     criarOverlaySecaHTML();
     criarEfeitosParticulas(scene);
     criarOndasCalor3D(scene);
-    setupModalJornalDOM();
 
     registerGameAnimation(scene, (dt) => {
         const data = getDataAtual();
@@ -119,13 +113,6 @@ export function setupSistemaClima(scene) {
                 eventoAtivoNoMomento = false;
                 probabilidadeInicio = 0;
                 probabilidadeFim = 0;
-
-                const semanaEdicao = Math.floor(diasDecorridos / 7) + 1; 
-                edicaoJornalAtual = {
-                    semana: semanaEdicao,
-                    titulo: `Informativo Semanal da Bacia - Semana ${semanaEdicao}`,
-                    climaPrevisto: eventoClimaticoAtual
-                };
 
                 aplicarEfeitosVisuaisClima(scene, EVENTOS_CLIMATICOS.normal.id);
             }
@@ -201,105 +188,8 @@ function processarCicloHoraClima(scene) {
 }
 
 // ==========================================================
-// PAINEL DO JORNAL E EFEITOS VISUAIS
+// EFEITOS VISUAIS DE CLIMA
 // ==========================================================
-function setupModalJornalDOM() {
-    if (document.getElementById("modal-jornal-overlay")) return;
-
-    const overlay = document.createElement("div");
-    overlay.id = "modal-jornal-overlay";
-    overlay.style.position = "fixed";
-    overlay.style.top = "0"; overlay.style.left = "0";
-    overlay.style.width = "100vw"; overlay.style.height = "100vh";
-    overlay.style.backgroundColor = "rgba(0, 0, 0, 0.82)";
-    overlay.style.backdropFilter = "blur(6px)";
-    overlay.style.display = "none";
-    overlay.style.justifyContent = "center";
-    overlay.style.alignItems = "center";
-    overlay.style.zIndex = "9999";
-
-    const paper = document.createElement("div");
-    paper.id = "modal-jornal-box";
-    paper.style.backgroundColor = "#fef3c7";
-    paper.style.border = "3px solid #78350f";
-    paper.style.borderRadius = "8px";
-    paper.style.padding = "25px 30px";
-    paper.style.width = "90%";
-    paper.style.maxWidth = "520px";
-    paper.style.color = "#1e1b4b";
-    paper.style.fontFamily = "Georgia, serif";
-    paper.style.boxShadow = "0 20px 40px rgba(0,0,0,0.8)";
-
-    paper.innerHTML = `
-        <div style="text-align: center; border-bottom: 2px solid #78350f; padding-bottom: 10px; margin-bottom: 15px;">
-            <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #92400e; font-weight: bold;">Gazeta da Bacia de Piracicaba</div>
-            <h1 style="margin: 4px 0 0 0; font-size: 26px; font-weight: 900; color: #451a03; text-transform: uppercase;">📰 JORNAL PIRACICABA</h1>
-            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #78350f; margin-top: 6px; font-style: italic;">
-                <span id="jornal-edicao-num">Edição Semanal</span>
-                <span>Distribuição Exclusiva ETA</span>
-            </div>
-        </div>
-
-        <div style="margin-bottom: 18px;">
-            <h2 id="jornal-manchete-titulo" style="font-size: 18px; color: #78350f; margin-top: 0; margin-bottom: 8px; font-weight: bold;">
-                Previsão Meteorológica da Semana
-            </h2>
-            <div style="background-color: rgba(120, 53, 15, 0.08); border-left: 4px solid #78350f; padding: 12px; border-radius: 4px;">
-                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
-                    <span id="jornal-clima-icone" style="font-size: 28px;">🌤️</span>
-                    <strong id="jornal-clima-nome" style="font-size: 16px; color: #451a03;">Clima Ameno & Normal</strong>
-                </div>
-                <div id="jornal-clima-efeito" style="font-size: 12px; font-weight: bold; color: #b45309; margin-bottom: 6px;">
-                    Operação estável
-                </div>
-                <p id="jornal-clima-detalhe" style="font-size: 13px; line-height: 1.4; color: #292524; margin: 0;">
-                    Semana sem grandes alterações climáticas. Captação e demanda operando no padrão.
-                </p>
-            </div>
-        </div>
-
-        <div style="text-align: center; margin-top: 20px;">
-            <button id="btn-fechar-jornal" style="
-                background-color: #78350f;
-                color: #fef3c7;
-                border: none;
-                padding: 10px 24px;
-                border-radius: 6px;
-                font-weight: bold;
-                font-size: 14px;
-                cursor: pointer;
-            ">Guardar Jornal</button>
-        </div>
-    `;
-
-    overlay.appendChild(paper);
-    document.body.appendChild(overlay);
-
-    document.getElementById("btn-fechar-jornal").addEventListener("click", () => {
-        overlay.style.display = "none";
-    });
-
-    overlay.addEventListener("click", (e) => {
-        if (e.target === overlay) overlay.style.display = "none";
-    });
-}
-
-export function abrirJornal() {
-    const overlay = document.getElementById("modal-jornal-overlay");
-    if (!overlay) return;
-
-    const clima = edicaoJornalAtual.climaPrevisto || EVENTOS_CLIMATICOS.normal;
-
-    document.getElementById("jornal-edicao-num").innerText = `Edição nº ${edicaoJornalAtual.semana}`;
-    document.getElementById("jornal-manchete-titulo").innerText = edicaoJornalAtual.titulo;
-    document.getElementById("jornal-clima-icone").innerText = clima.icone;
-    document.getElementById("jornal-clima-nome").innerText = clima.nome;
-    document.getElementById("jornal-clima-efeito").innerText = `Impacto Operacional: ${clima.efeitoTexto}`;
-    document.getElementById("jornal-clima-detalhe").innerText = clima.detalhe;
-
-    overlay.style.display = "flex";
-}
-
 function criarOverlaySecaHTML() {
     if (document.getElementById("overlay-clima-seca")) return;
     overlaySecaHTML = document.createElement("div");

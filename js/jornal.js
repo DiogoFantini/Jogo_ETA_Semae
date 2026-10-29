@@ -1,4 +1,4 @@
-import { registerGameAnimation, getDataAtual, getDiasDecorridos } from './tempo.js';
+﻿import { registerGameAnimation, getDataAtual, getDiasDecorridos } from './tempo.js';
 import { getVazaoAtualHora, getQuantidadeBombas } from './sistema-agua.js';
 import { getConsumoTotalEnergia } from './sistema-energia.js';
 import { getEventoSorteadoSemana } from './clima.js';

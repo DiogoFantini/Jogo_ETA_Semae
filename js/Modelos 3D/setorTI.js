@@ -1,4 +1,4 @@
-import { registerGameAnimation } from '../tempo.js';
+﻿import { registerGameAnimation } from '../tempo.js';
 import { isInvestimentoComprado } from '../investimentos.js';
 import { abrirModalSetorTI } from '../hud.js';
 

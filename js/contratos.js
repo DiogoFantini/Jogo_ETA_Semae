@@ -1,4 +1,4 @@
-import { getDataAtual, registerGameAnimation } from './tempo.js';
+﻿import { getDataAtual, registerGameAnimation } from './tempo.js';
 import { formatarDinheiro, adicionarDinheiro, gastarDinheiro, podePagar, exibirPopUpAviso, exibirPopUpSemDinheiro } from './condicoes.js';
 import { getVazaoAtualHora } from './sistema-agua.js';
 import { getHistoricoRelatorios, registrarEntradaFinanceira, registrarGastoMulta } from './relatorio.js';
@@ -480,9 +480,12 @@ export function setupPainelContratos(scene, predioVisual, hitbox) {
     document.getElementById("btn-fechar-contratos").addEventListener("click", () => { painelOverlay.style.display = "none"; });
     painelOverlay.addEventListener("click", (e) => { if (e.target === painelOverlay) painelOverlay.style.display = "none"; });
 
+    let ultimoDiaChecado = -1;
     registerGameAnimation(scene, () => {
         const data = getDataAtual();
-        const diaAtual = Math.floor(data.getTime() / (1000 * 60 * 60 * 24));
+        const diaAtual = Math.floor(data.getTime() / 86400000);
+        if (diaAtual === ultimoDiaChecado) return;
+        ultimoDiaChecado = diaAtual;
 
         if (ultimoDiaGeracao !== -1 && (diaAtual - ultimoDiaGeracao) >= 3) {
             gerarLoteEquilibradoContratos();

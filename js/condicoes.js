@@ -1,4 +1,4 @@
-import { atualizarTerreno, atualizarDinheiro } from './hud.js';
+﻿import { atualizarTerreno, atualizarDinheiro } from './hud.js';
 
 // ==========================================================
 // CONFIGURAÇÕES E ESTADO DO JOGO

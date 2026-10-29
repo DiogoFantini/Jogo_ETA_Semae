@@ -1,4 +1,4 @@
-import { getDataAtual } from './tempo.js';
+﻿import { getDataAtual } from './tempo.js';
 
 export function setupIluminacao(scene) {
     // ==========================================================
@@ -30,9 +30,9 @@ export function setupIluminacao(scene) {
     luaMesh.material = matLua;
 
     // ==========================================================
-    // 3. TABELA DE CORES DO CÉU (INTERPOLAÇÃO SUAVE)
+    // 3. TABELA DE CORES DO CÉU (PRÉ-ALOCADA COM ZERO ALLOC NO LOOP)
     // ==========================================================
-    const coresCiclo = [
+    const coresCicloDef = [
         { hora: 0,  sky: "#090d16", hemiInt: 0.25, dirInt: 0.25, dirCol: "#a5f3fc" }, // Meia-noite (Luar)
         { hora: 5,  sky: "#090d16", hemiInt: 0.25, dirInt: 0.25, dirCol: "#a5f3fc" }, // Fim da Noite
         { hora: 6,  sky: "#7e22ce", hemiInt: 0.50, dirInt: 0.50, dirCol: "#fde047" }, // Amanhecer (Roxo Alvorada)
@@ -44,7 +44,20 @@ export function setupIluminacao(scene) {
         { hora: 24, sky: "#090d16", hemiInt: 0.25, dirInt: 0.25, dirCol: "#a5f3fc" }  // Fim do Dia
     ];
 
-    function obterEstadoCeu(horasDecimais) {
+    // Converte hexadecimais uma única vez no boot
+    const coresCiclo = coresCicloDef.map(c => ({
+        hora: c.hora,
+        sky: BABYLON.Color4.FromHexString(c.sky + "FF"),
+        dirCol: BABYLON.Color3.FromHexString(c.dirCol),
+        hemiInt: c.hemiInt,
+        dirInt: c.dirInt
+    }));
+
+    // Objetos reutilizados no loop sem gerar garbage collection
+    const skyFinal = new BABYLON.Color4(0.035, 0.05, 0.086, 1);
+    const dirColFinal = new BABYLON.Color3(0.65, 0.95, 0.98);
+
+    function atualizarEstadoCeu(horasDecimais) {
         for (let i = 0; i < coresCiclo.length - 1; i++) {
             const atual = coresCiclo[i];
             const proximo = coresCiclo[i + 1];
@@ -52,31 +65,16 @@ export function setupIluminacao(scene) {
             if (horasDecimais >= atual.hora && horasDecimais <= proximo.hora) {
                 const t = (horasDecimais - atual.hora) / (proximo.hora - atual.hora);
 
-                const cSkyInit = BABYLON.Color4.FromHexString(atual.sky + "FF");
-                const cSkyEnd = BABYLON.Color4.FromHexString(proximo.sky + "FF");
-                const skyFinal = BABYLON.Color4.Lerp(cSkyInit, cSkyEnd, t);
+                BABYLON.Color4.LerpToRef(atual.sky, proximo.sky, t, skyFinal);
+                BABYLON.Color3.LerpToRef(atual.dirCol, proximo.dirCol, t, dirColFinal);
 
-                const cDirInit = BABYLON.Color3.FromHexString(atual.dirCol);
-                const cDirEnd = BABYLON.Color3.FromHexString(proximo.dirCol);
-                const dirColFinal = BABYLON.Color3.Lerp(cDirInit, cDirEnd, t);
-
-                const hemiIntFinal = BABYLON.Scalar.Lerp(atual.hemiInt, proximo.hemiInt, t);
-                const dirIntFinal = BABYLON.Scalar.Lerp(atual.dirInt, proximo.dirInt, t);
-
-                return {
-                    skyColor: skyFinal,
-                    dirColor: dirColFinal,
-                    hemiIntensity: hemiIntFinal,
-                    dirIntensity: dirIntFinal
-                };
+                scene.clearColor = skyFinal;
+                dirLight.color = dirColFinal;
+                hemiLight.intensity = BABYLON.Scalar.Lerp(atual.hemiInt, proximo.hemiInt, t);
+                dirLight.intensity = BABYLON.Scalar.Lerp(atual.dirInt, proximo.dirInt, t);
+                return;
             }
         }
-        return {
-            skyColor: BABYLON.Color4.FromHexString("#090d16FF"),
-            dirColor: BABYLON.Color3.FromHexString("#a5f3fc"),
-            hemiIntensity: 0.25,
-            dirIntensity: 0.25
-        };
     }
 
     // ==========================================================
@@ -99,20 +97,14 @@ export function setupIluminacao(scene) {
         // A Lua orbita exatamente oposta ao Sol (180 graus de diferença)
         luaMesh.position.set(posX, -posY, -posZ);
 
-        // Atualiza a direção da luz principal (aponta do Sol/Lua para o centro do mapa)
+        // Atualiza a direção da luz principal reutilizando memória
         if (posY > 0) {
-            // Dia: Luz vinda do Sol
-            dirLight.direction = solMesh.position.negate().normalize();
+            dirLight.direction.copyFrom(solMesh.position).scaleInPlace(-1).normalize();
         } else {
-            // Noite: Luz vinda da Lua
-            dirLight.direction = luaMesh.position.negate().normalize();
+            dirLight.direction.copyFrom(luaMesh.position).scaleInPlace(-1).normalize();
         }
 
-        // Atualiza cores e intensidades do ambiente
-        const estado = obterEstadoCeu(horasDecimais);
-        scene.clearColor = estado.skyColor;
-        dirLight.color = estado.dirColor;
-        dirLight.intensity = estado.dirIntensity;
-        hemiLight.intensity = estado.hemiIntensity;
+        // Atualiza cores e intensidades do ambiente sem alocação
+        atualizarEstadoCeu(horasDecimais);
     });
 }

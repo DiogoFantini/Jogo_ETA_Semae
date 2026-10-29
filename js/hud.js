@@ -1,4 +1,4 @@
-import { ativarCamera } from './camera.js';
+﻿import { ativarCamera } from './camera.js';
 import { formatarDinheiro, CUSTOS_ESTRUTURAS } from './condicoes.js';
 import { 
     iniciarRelogio, 
@@ -530,48 +530,54 @@ export function abrirModalSetorTI() {
 }
 
 // ==========================================================
-// FUNÇÕES UTILITÁRIAS DE ATUALIZAÇÃO DA INTERFACE (EXPORTADAS)
+// FUNÇÕES UTILITÁRIAS DE ATUALIZAÇÃO DA INTERFACE (EXPORTADAS COM CACHE DE DOM)
 // ==========================================================
+const domCache = {};
+function getCachedEl(id) {
+    if (!domCache[id]) domCache[id] = document.getElementById(id);
+    return domCache[id];
+}
+
 export function atualizarNomeETA(nome) {
-    const el = document.getElementById("hud-titulo");
-    if (el) el.innerText = nome;
+    const el = getCachedEl("hud-titulo");
+    if (el) el.textContent = nome;
     if (typeof window.atualizarPlacaETA === "function") window.atualizarPlacaETA(nome);
 }
 
 export function atualizarRelogioHUD(textoDataHora) {
-    const el = document.getElementById("hud-relogio");
-    if (el) el.innerText = textoDataHora;
+    const el = getCachedEl("hud-relogio");
+    if (el) el.textContent = textoDataHora;
 }
 
 export function atualizarDinheiro(valor) {
-    const el = document.getElementById("hud-dinheiro");
-    if (el) el.innerText = formatarDinheiro(valor);
+    const el = getCachedEl("hud-dinheiro");
+    if (el) el.textContent = formatarDinheiro(valor);
 }
 
 export function atualizarTerreno(usado, total) {
-    const el = document.getElementById("hud-terreno");
-    if (el) el.innerText = `${usado}/${total}`;
+    const el = getCachedEl("hud-terreno");
+    if (el) el.textContent = `${usado}/${total}`;
 }
 
 export function atualizarAguaDistribuida(valor) {
-    const el = document.getElementById("hud-distribuida");
+    const el = getCachedEl("hud-distribuida");
     if (el) el.innerHTML = valor;
 }
 
 export function atualizarAguaTratada(porcentagem) {
-    const el = document.getElementById("hud-tratada");
-    if (el) el.innerText = `${Math.min(100, Math.max(0, Math.round(porcentagem)))}%`;
+    const el = getCachedEl("hud-tratada");
+    if (el) el.textContent = `${Math.min(100, Math.max(0, Math.round(porcentagem)))}%`;
 }
 
 export function atualizarConsumoEnergia(valorKw) {
-    const el = document.getElementById("hud-energia");
-    if (el) el.innerText = `${valorKw} kW/h`;
+    const el = getCachedEl("hud-energia");
+    if (el) el.textContent = `${valorKw} kW/h`;
 }
 
 export function atualizarMeta(statusTexto, completada = false) {
-    const el = document.getElementById("hud-meta");
+    const el = getCachedEl("hud-meta");
     if (el) {
-        el.innerText = statusTexto;
+        el.textContent = statusTexto;
         el.style.color = completada ? "#4ade80" : "#f87171"; 
     }
 }

@@ -1,4 +1,4 @@
-import { getDataAtual, registerGameAnimation } from '../tempo.js';
+﻿import { getDataAtual, registerGameAnimation } from '../tempo.js';
 
 // ============================================================================
 // cidade.js — Tudo que pertence à cidade ao fundo do jogo
@@ -832,7 +832,6 @@ export function createCidade(scene) {
     const ponte = BABYLON.MeshBuilder.CreateBox("ponte", { width: 16, height: deckTopo, depth: 6 }, scene);
     ponte.position = new BABYLON.Vector3(25, deckTopo / 2, -65);
     ponte.material = matDeck;
-    ponte.physicsImpostor = new BABYLON.PhysicsImpostor(ponte, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 0 }, scene);
 
     caixa(matAsfalto, 16, 0.01, 5.2, 25, deckTopo, -65);
     for (const xi of [19, 23, 27, 31]) caixa(matAmarelo, 1.6, 0.012, 0.15, xi, deckTopo + 0.008, -65);
@@ -848,7 +847,6 @@ export function createCidade(scene) {
         const mureta = BABYLON.MeshBuilder.CreateBox("mureta", { width: 16, height: 0.6, depth: 0.2 }, scene);
         mureta.position = new BABYLON.Vector3(25, 0.53, zc);
         mureta.material = matMureta;
-        mureta.physicsImpostor = new BABYLON.PhysicsImpostor(mureta, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 0 }, scene);
     }
 
     for (const px of [17.35, 32.65]) {

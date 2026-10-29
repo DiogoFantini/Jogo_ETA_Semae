@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // natureza.js — Ambiente externo à ETA (grama, árvores, flores, juncos, pedras)
 // ============================================================================
 
@@ -141,11 +141,11 @@ export function createNatureza(scene, ground) {
     const distBanco = (x) => (x < RIO[0] ? RIO[0] - x : (x > RIO[1] ? x - RIO[1] : 0));
 
     const LADO_TEXTURA = 16;
-    const texGrama = criarTextura("texGramaNatureza", 1024, 1024, (ctx, t) => {
+    const texGrama = criarTextura("texGramaNatureza", 512, 512, (ctx, t) => {
         ctx.fillStyle = "#4e9a3a";
         ctx.fillRect(0, 0, t, t);
 
-        for (let i = 0; i < 80; i++) {
+        for (let i = 0; i < 35; i++) {
             const x = rng() * t, y = rng() * t, r = 50 + rng() * 150;
             const cor = escolher(["rgba(28,88,30,0.30)", "rgba(150,195,70,0.24)", "rgba(110,160,50,0.22)", "rgba(40,110,40,0.22)", "rgba(170,160,70,0.14)"]);
             comWrap(t, x, y, r, (px, py) => {
@@ -159,7 +159,7 @@ export function createNatureza(scene, ground) {
 
         const paleta = ["#2f6f2a", "#3f8a32", "#5aa63e", "#78bb4c", "#8fc95a", "#a3b84a", "#2a6226"];
         ctx.lineCap = "round";
-        for (let i = 0; i < 6500; i++) {
+        for (let i = 0; i < 1600; i++) {
             const x = rng() * t, y = rng() * t;
             const ang = -Math.PI / 2 + (rng() - 0.5) * 1.6;
             const len = 7 + rng() * 14;

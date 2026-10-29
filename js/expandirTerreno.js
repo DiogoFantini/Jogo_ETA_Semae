@@ -1,4 +1,4 @@
-import { formatarDinheiro, gastarDinheiro, exibirPopUpAviso, podePagar } from './condicoes.js';
+﻿import { formatarDinheiro, gastarDinheiro, exibirPopUpAviso, podePagar } from './condicoes.js';
 import { registrarGastoConstrucao } from './relatorio.js';
 import { removerNaturezaNaArea } from './Modelos 3D/natureza.js';
 
