@@ -1,14 +1,11 @@
 import { getDataAtual, registerGameAnimation } from './tempo.js';
-import { formatarDinheiro, adicionarDinheiro, gastarDinheiro, exibirPopUpAviso } from './condicoes.js';
+import { formatarDinheiro, adicionarDinheiro, gastarDinheiro, podePagar, exibirPopUpAviso, exibirPopUpSemDinheiro } from './condicoes.js';
 import { getVazaoAtualHora } from './sistema-agua.js';
 import { getHistoricoRelatorios, registrarEntradaFinanceira, registrarGastoMulta } from './relatorio.js';
 import { getEventoClimaticoAtual } from './clima.js';
 import { atualizarMeta } from './hud.js';
 import { renderizarAbaInvestimentos } from './investimentos.js';
 
-// ==========================================================
-// CONFIGURAÇÕES E LIMITES DE CONTRATOS
-// ==========================================================
 export let MAX_CONTRATOS_ATIVOS = 5;
 let contratosDisponiveis = [];
 let contratosAtivos = [];
@@ -105,6 +102,81 @@ export function atualizarMetaHUDContratos() {
         const textoMeta = `${demandaEfetivaTotal} m³/h${sufixoCalor} (${contratosAtivos.length}/${MAX_CONTRATOS_ATIVOS} ${contratosAtivos.length === 1 ? 'contrato' : 'contratos'})`;
         atualizarMeta(textoMeta, atendeDemanda);
     }
+}
+
+// Exibe modal de confirmação de rescisão com cálculo da multa
+function exibirPopUpConfirmarCancelamento(contrato, onConfirmar) {
+    const semanasRestantes = contrato.duracaoSemanas - contrato.semanasConcluidas;
+    const valorMultaRescisao = semanasRestantes * contrato.pagamentoSemanal;
+
+    const modalOverlay = document.createElement("div");
+    modalOverlay.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        background-color: rgba(0, 0, 0, 0.85); backdrop-filter: blur(4px);
+        display: flex; justify-content: center; align-items: center;
+        z-index: 10000; font-family: Arial, sans-serif; color: #ffffff;
+    `;
+
+    const modalBox = document.createElement("div");
+    modalBox.style.cssText = `
+        background-color: #0f172a; border: 2px solid #ef4444; border-radius: 12px;
+        padding: 22px; width: 90%; max-width: 480px; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        display: flex; flex-direction: column; gap: 14px;
+    `;
+
+    modalBox.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #334155; padding-bottom: 10px;">
+            <span style="font-size: 22px;">⚠️</span>
+            <h3 style="margin: 0; color: #f87171; font-size: 18px;">Cancelar Contrato em Andamento</h3>
+        </div>
+
+        <p style="margin: 0; font-size: 13px; color: #cbd5e1; line-height: 1.5;">
+            Você está prestes a cancelar o contrato de <strong>${contrato.cliente}</strong>.
+        </p>
+
+        <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 12px; font-size: 12px; display: flex; flex-direction: column; gap: 6px;">
+            <div style="display: flex; justify-content: space-between;">
+                <span>⏳ Semanas Faltantes:</span>
+                <strong style="color: #fde047;">${semanasRestantes} ${semanasRestantes === 1 ? 'semana' : 'semanas'}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span>💧 Valor Semanal do Abastecimento:</span>
+                <strong>${formatarDinheiro(contrato.pagamentoSemanal)}</strong>
+            </div>
+            <div style="border-top: 1px solid #334155; padding-top: 6px; margin-top: 2px; display: flex; justify-content: space-between; font-weight: bold; font-size: 13px; color: #f87171;">
+                <span>💸 Multa Rescisória a Pagar:</span>
+                <span>${formatarDinheiro(valorMultaRescisao)}</span>
+            </div>
+        </div>
+
+        <p style="margin: 0; font-size: 11px; color: #94a3b8; font-style: italic;">
+            O valor da multa corresponde ao fornecimento pendente até o final do contrato.
+        </p>
+
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 6px;">
+            <button id="btn-cancelar-modal" style="background: #1e293b; color: #cbd5e1; border: 1px solid #334155; border-radius: 6px; padding: 8px 16px; font-weight: bold; cursor: pointer; font-size: 13px;">Voltar</button>
+            <button id="btn-confirmar-modal" style="background: #dc2626; color: #ffffff; border: none; border-radius: 6px; padding: 8px 16px; font-weight: bold; cursor: pointer; font-size: 13px;">Pagar Multa e Cancelar</button>
+        </div>
+    `;
+
+    modalOverlay.appendChild(modalBox);
+    document.body.appendChild(modalOverlay);
+
+    modalBox.querySelector("#btn-cancelar-modal").addEventListener("click", () => {
+        document.body.removeChild(modalOverlay);
+    });
+
+    modalBox.querySelector("#btn-confirmar-modal").addEventListener("click", () => {
+        if (!podePagar(valorMultaRescisao)) {
+            exibirPopUpSemDinheiro();
+            return;
+        }
+
+        gastarDinheiro(valorMultaRescisao);
+        registrarGastoMulta(valorMultaRescisao);
+        document.body.removeChild(modalOverlay);
+        onConfirmar();
+    });
 }
 
 export function setupPainelContratos(scene, predioVisual, hitbox) {
@@ -208,7 +280,7 @@ export function setupPainelContratos(scene, predioVisual, hitbox) {
             const relatorios = getHistoricoRelatorios();
 
             if (relatorios.length === 0) {
-                container.innerHTML = `<div style="text-align: center; color: #64748b; padding: 30px; font-size: 14px;">Ainda não há relatorios semanais fechados. Complete a primeira semana de operação!</div>`;
+                container.innerHTML = `<div style="text-align: center; color: #64748b; padding: 30px; font-size: 14px;">Ainda não há relatórios semanais fechados. Complete a primeira semana de operação!</div>`;
                 return;
             }
 
@@ -231,6 +303,21 @@ export function setupPainelContratos(scene, predioVisual, hitbox) {
                 const totalDespesas = r.despesas?.total || 0;
                 const receitaContratos = r.receitas?.contratos || 0;
                 const receitaTotal = r.receitas?.total || 0;
+                const detalhesContratos = r.receitas?.detalhesContratos || [];
+
+                let htmlDetalhesContratos = "";
+                if (detalhesContratos.length > 0) {
+                    htmlDetalhesContratos = `<div style="margin-top: 6px; padding-top: 4px; border-top: 1px dashed #334155; font-size: 11px;">`;
+                    detalhesContratos.forEach(dc => {
+                        htmlDetalhesContratos += `
+                            <div style="display: flex; justify-content: space-between; color: #94a3b8; margin-bottom: 2px;">
+                                <span>• ${dc.cliente}:</span>
+                                <span style="color: #4ade80;">+${formatarDinheiro(dc.valor)}</span>
+                            </div>
+                        `;
+                    });
+                    htmlDetalhesContratos += `</div>`;
+                }
 
                 cardRelatorio.innerHTML = `
                     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 8px; margin-bottom: 10px;">
@@ -245,6 +332,7 @@ export function setupPainelContratos(scene, predioVisual, hitbox) {
                                 <span>Contratos de Água:</span>
                                 <strong>${formatarDinheiro(receitaContratos)}</strong>
                             </div>
+                            ${htmlDetalhesContratos}
                             <div style="border-top: 1px solid #334155; margin-top: 6px; padding-top: 4px; display: flex; justify-content: space-between; font-weight: bold; color: #4ade80;">
                                 <span>Total Recebido:</span>
                                 <span>${formatarDinheiro(receitaTotal)}</span>
@@ -314,6 +402,7 @@ export function setupPainelContratos(scene, predioVisual, hitbox) {
             else if (c.dificuldade === "dificil") { corDificuldade = "#f87171"; rotuloDif = "Difícil"; }
 
             const demandaExibicao = abaAtual === "ativos" ? Math.round(c.demandaHora * multDemanda) : c.demandaHora;
+            const semanasRestantes = c.duracaoSemanas - c.semanasConcluidas;
 
             card.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -323,14 +412,14 @@ export function setupPainelContratos(scene, predioVisual, hitbox) {
                             <span style="font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px; background-color: rgba(255,255,255,0.1); color: ${corDificuldade};">${rotuloDif}</span>
                         </div>
                         <div style="font-size: 12px; color: #cbd5e1; display: flex; flex-direction: column; gap: 2px;">
-                            <span>🌊 Demanda: <strong style="color: #38bdf8;">${demandaExibicao} m³/h</strong> | ⏳ Duração: <strong>${c.duracaoSemanas} semanas</strong></span>
+                            <span>🌊 Demanda: <strong style="color: #38bdf8;">${demandaExibicao} m³/h</strong> | ${abaAtual === "disponiveis" ? `⏳ Duração: <strong>${c.duracaoSemanas} semanas</strong>` : `⏳ Faltam: <strong style="color: #fde047;">${semanasRestantes} ${semanasRestantes === 1 ? 'semana' : 'semanas'}</strong> (de ${c.duracaoSemanas})`}</span>
                             <span>💵 Ganho Semanal: <strong style="color: #4ade80;">${formatarDinheiro(c.pagamentoSemanal || 0)}/sem</strong></span>
                         </div>
                     </div>
                     <div>
                         ${abaAtual === "disponiveis" ? 
                             `<button class="btn-assinar-contrato" data-id="${c.id}" style="background-color: #0284c7; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px;">Assinar Contrato</button>` :
-                            `<span style="color: #4ade80; font-size: 12px; font-weight: bold;">● Ativo</span>`
+                            `<button class="btn-cancelar-contrato" data-id="${c.id}" style="background-color: #dc2626; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px;">Cancelar contrato</button>`
                         }
                     </div>
                 </div>
@@ -339,10 +428,11 @@ export function setupPainelContratos(scene, predioVisual, hitbox) {
             container.appendChild(card);
         });
 
+        // Evento de assinar contrato (Notificação verde)
         container.querySelectorAll(".btn-assinar-contrato").forEach(btn => {
             btn.addEventListener("click", (e) => {
                 if (contratosAtivos.length >= MAX_CONTRATOS_ATIVOS) {
-                    exibirPopUpAviso(`⚠️ Limite de ${MAX_CONTRATOS_ATIVOS} contratos ativos atingido! Conclua um contrato antes de assinar outro.`);
+                    exibirPopUpAviso(`⚠️ Limite de ${MAX_CONTRATOS_ATIVOS} contratos ativos atingido! Conclua um contrato antes de assinar outro.`, "multa");
                     return;
                 }
 
@@ -351,8 +441,32 @@ export function setupPainelContratos(scene, predioVisual, hitbox) {
                 if (idx !== -1) {
                     const contratoAssinado = contratosDisponiveis.splice(idx, 1)[0];
                     contratosAtivos.push(contratoAssinado);
+                    exibirPopUpAviso(`🎉 Contrato assinado com sucesso com ${contratoAssinado.cliente}!`, "contrato");
                     atualizarMetaHUDContratos();
                     renderizarLista();
+                }
+            });
+        });
+
+        // Evento de cancelar contrato ativo (Notificação vermelha)
+        container.querySelectorAll(".btn-cancelar-contrato").forEach(btn => {
+            btn.addEventListener("click", (e) => {
+                const id = parseInt(e.target.getAttribute("data-id"));
+                const contrato = contratosAtivos.find(c => c.id === id);
+
+                if (contrato) {
+                    exibirPopUpConfirmarCancelamento(contrato, () => {
+                        const idx = contratosAtivos.findIndex(c => c.id === id);
+                        if (idx !== -1) {
+                            const [contratoRemovido] = contratosAtivos.splice(idx, 1);
+                            contratoRemovido.semanasConcluidas = 0;
+                            contratosDisponiveis.push(contratoRemovido);
+
+                            exibirPopUpAviso(`❌ Contrato com ${contratoRemovido.cliente} foi cancelado.`, "multa");
+                            atualizarMetaHUDContratos();
+                            renderizarLista();
+                        }
+                    });
                 }
             });
         });
@@ -372,7 +486,7 @@ export function setupPainelContratos(scene, predioVisual, hitbox) {
 
         if (ultimoDiaGeracao !== -1 && (diaAtual - ultimoDiaGeracao) >= 3) {
             gerarLoteEquilibradoContratos();
-            exibirPopUpAviso("📜 Novos contratos disponíveis na Sede!");
+            exibirPopUpAviso("📜 Novos contratos disponíveis na Sede!", "contrato");
             if (painelOverlay.style.display === "flex") renderizarLista();
             ultimoDiaGeracao = diaAtual;
         } else if (ultimoDiaGeracao === -1) {
@@ -409,12 +523,18 @@ export function setupPainelContratos(scene, predioVisual, hitbox) {
                         else if (percentualDeficit > 0) fracaoMulta = 1;
                     }
 
+                    let valorRecebidoContrato = 0;
                     if (fracaoMulta === 0) {
-                        totalDebitoCredito += c.pagamentoSemanal;
+                        valorRecebidoContrato = c.pagamentoSemanal;
                     } else {
                         const valorMulta = Math.round((c.pagamentoSemanal / 3) * fracaoMulta);
-                        totalDebitoCredito += (c.pagamentoSemanal - valorMulta);
+                        valorRecebidoContrato = c.pagamentoSemanal - valorMulta;
                         valorMultasAplicadas += valorMulta;
+                    }
+
+                    if (valorRecebidoContrato > 0) {
+                        totalDebitoCredito += valorRecebidoContrato;
+                        registrarEntradaFinanceira(valorRecebidoContrato, c.cliente);
                     }
 
                     if (c.semanasConcluidas >= c.duracaoSemanas) {
@@ -424,12 +544,11 @@ export function setupPainelContratos(scene, predioVisual, hitbox) {
 
                 if (totalDebitoCredito > 0) {
                     adicionarDinheiro(totalDebitoCredito);
-                    registrarEntradaFinanceira(totalDebitoCredito);
                 }
 
                 if (valorMultasAplicadas > 0) {
                     registrarGastoMulta(valorMultasAplicadas);
-                    exibirPopUpAviso(`⚠️ Multa semanal de ${formatarDinheiro(valorMultasAplicadas)} por déficit de abastecimento!`);
+                    exibirPopUpAviso(`⚠️ Multa semanal de ${formatarDinheiro(valorMultasAplicadas)} por déficit de abastecimento!`, "multa");
                 }
 
                 atualizarMetaHUDContratos();

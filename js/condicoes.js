@@ -87,54 +87,124 @@ export function definirLimiteTerreno(novoLimite) {
 }
 
 // ==========================================================
-// SISTEMA DE NOTIFICAÇÃO E POP-UPS (UI)
+// SISTEMA DE NOTIFICAÇÕES E POP-UPS (UI)
 // ==========================================================
-let timerPopup = null;
+let containerNotificacoes = null;
 
-export function exibirPopUpAviso(mensagem) {
-    let popup = document.getElementById("popup-aviso-gameplay");
-    
-    if (popup) {
-        popup.remove();
-        if (timerPopup) clearTimeout(timerPopup);
+function obterOuCriarContainerNotificacoes() {
+    if (!containerNotificacoes || !document.body.contains(containerNotificacoes)) {
+        containerNotificacoes = document.createElement("div");
+        containerNotificacoes.id = "hud-container-notificacoes";
+        containerNotificacoes.style.cssText = `
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            display: flex; flex-direction: column; align-items: center; gap: 10px;
+            z-index: 10000; pointer-events: none; width: 90%; max-width: 520px;
+        `;
+        document.body.appendChild(containerNotificacoes);
+    }
+    return containerNotificacoes;
+}
+
+/**
+ * Exibe notificação na HUD com cor temática e duração estendida
+ * @param {string} mensagem Texto da notificação
+ * @param {string|null} tipo 'contrato', 'multa', 'clima' ou null para auto-detecção
+ * @param {number} duracaoMs Tempo em milissegundos (padrão 8000ms / 8s)
+ */
+export function exibirPopUpAviso(mensagem, tipo = null, duracaoMs = 8000) {
+    const container = obterOuCriarContainerNotificacoes();
+
+    // Auto-detecção de categoria por palavras-chave caso não informado
+    let tipoEfetivo = tipo;
+    if (!tipoEfetivo) {
+        const msgLower = mensagem.toLowerCase();
+        if (msgLower.includes("multa") || msgLower.includes("déficit") || msgLower.includes("insuficiente") || msgLower.includes("cancelad") || msgLower.includes("limite") || msgLower.includes("❌")) {
+            tipoEfetivo = "multa";
+        } else if (msgLower.includes("clima") || msgLower.includes("climático") || msgLower.includes("chuva") || msgLower.includes("calor") || msgLower.includes("seca") || msgLower.includes("trégua") || msgLower.includes("🌤️") || msgLower.includes("🌧️")) {
+            tipoEfetivo = "clima";
+        } else if (msgLower.includes("contrato") || msgLower.includes("sucesso") || msgLower.includes("adquirido") || msgLower.includes("investimento") || msgLower.includes("liberad") || msgLower.includes("🎉") || msgLower.includes("📜") || msgLower.includes("✅")) {
+            tipoEfetivo = "contrato";
+        } else {
+            tipoEfetivo = "padrao";
+        }
     }
 
-    popup = document.createElement("div");
-    popup.id = "popup-aviso-gameplay";
-    
-    popup.style.cssText = `
-        position: fixed; top: 12%; left: 50%;
-        transform: translate(-50%, -50%);
-        background-color: rgba(15, 23, 42, 0.95);
-        color: #f87171; border: 2px solid #ef4444;
-        border-radius: 10px; padding: 12px 24px;
-        font-family: Arial, sans-serif; font-size: 16px;
-        font-weight: bold; box-shadow: 0 8px 20px rgba(0,0,0,0.7);
-        z-index: 2000; pointer-events: none;
-        transition: all 0.4s ease-in-out; opacity: 0;
+    // Configuração das cores por tipo
+    let bgCor = "rgba(15, 23, 42, 0.95)";
+    let borderCor = "#38bdf8";
+    let textoCor = "#ffffff";
+    let icone = "ℹ️";
+
+    if (tipoEfetivo === "contrato" || tipoEfetivo === "verde") {
+        bgCor = "rgba(20, 83, 45, 0.95)";     // Verde escuro
+        borderCor = "#22c55e";                 // Verde brilhante
+        textoCor = "#f0fdf4";
+        icone = "📜";
+    } else if (tipoEfetivo === "multa" || tipoEfetivo === "vermelho") {
+        bgCor = "rgba(127, 29, 29, 0.95)";    // Vermelho escuro
+        borderCor = "#ef4444";                 // Vermelho brilhante
+        textoCor = "#fef2f2";
+        icone = "⚠️";
+    } else if (tipoEfetivo === "clima" || tipoEfetivo === "azul-escuro") {
+        bgCor = "rgba(30, 58, 138, 0.95)";    // Azul marinho escuro
+        borderCor = "#3b82f6";                 // Azul brilhante
+        textoCor = "#eff6ff";
+        icone = "🌤️";
+    }
+
+    const toast = document.createElement("div");
+    toast.style.cssText = `
+        background-color: ${bgCor};
+        border: 2px solid ${borderCor};
+        color: ${textoCor};
+        padding: 12px 18px;
+        border-radius: 8px;
+        font-family: Arial, sans-serif;
+        font-size: 14px;
+        font-weight: bold;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+        backdrop-filter: blur(5px);
+        pointer-events: auto;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        box-sizing: border-box;
+        opacity: 0;
+        transform: translateY(-15px);
+        transition: all 0.4s ease-in-out;
     `;
 
-    popup.innerHTML = mensagem;
-    document.body.appendChild(popup);
+    toast.innerHTML = `
+        <span style="font-size: 18px; flex-shrink: 0;">${icone}</span>
+        <span style="flex: 1; line-height: 1.4;">${mensagem}</span>
+        <button style="background: none; border: none; color: ${borderCor}; font-size: 16px; font-weight: bold; cursor: pointer; padding: 0 4px;" onclick="this.parentElement.remove()">✕</button>
+    `;
+
+    container.appendChild(toast);
 
     requestAnimationFrame(() => {
-        popup.style.opacity = "1";
-        popup.style.transform = "translate(-50%, -30%)";
+        toast.style.opacity = "1";
+        toast.style.transform = "translateY(0)";
     });
 
-    timerPopup = setTimeout(() => {
-        if (popup && popup.parentElement) {
-            popup.style.opacity = "0";
-            popup.style.transform = "translate(-50%, -60%)";
-            setTimeout(() => popup.remove(), 400);
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.style.opacity = "0";
+            toast.style.transform = "translateY(-15px)";
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+            }, 400);
         }
-    }, 2500);
+    }, duracaoMs);
 }
 
 export function exibirPopUpLimite() {
-    exibirPopUpAviso("⚠️ Limite máximo de terrenos atingido");
+    exibirPopUpAviso("⚠️ Limite máximo de terrenos atingido!", "multa");
 }
 
 export function exibirPopUpSemDinheiro() {
-    exibirPopUpAviso("💸 Dinheiro insuficiente");
+    exibirPopUpAviso("💸 Dinheiro insuficiente!", "multa");
 }

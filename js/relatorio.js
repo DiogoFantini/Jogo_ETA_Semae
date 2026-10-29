@@ -11,6 +11,7 @@ export const CUSTO_MANUTENCAO_ESTRUTURAS = {
 export const VALOR_KWH_SEMANAL = 120;
 
 let receitaAtualSemana = 0;
+let detalheReceitasContratos = []; // Guarda { cliente, valor } dos pagamentos da semana
 let gastosConstrucaoAtual = 0;
 let gastosManutencaoChuvaAtual = 0;
 let gastosMultasAtual = 0;
@@ -19,7 +20,12 @@ let aguaAcumuladaSemanaInicio = 0;
 let historicoRelatoriosSemanais = [];
 let ultimaSemanaCobrada = 0;
 
-export function registrarEntradaFinanceira(valor) { receitaAtualSemana += valor; }
+export function registrarEntradaFinanceira(valor, nomeCliente = null) { 
+    receitaAtualSemana += valor; 
+    if (nomeCliente && valor > 0) {
+        detalheReceitasContratos.push({ cliente: nomeCliente, valor: valor });
+    }
+}
 export function registrarGastoConstrucao(valor) { gastosConstrucaoAtual += valor; }
 export function registrarAdicionalManutencaoChuva(valor) { gastosManutencaoChuvaAtual += valor; }
 export function registrarGastoMulta(valor) { gastosMultasAtual += valor; }
@@ -33,7 +39,7 @@ export function setupSistemaRelatorio(scene) {
         const diasDecorridos = getDiasDecorridos(data);
         const semanaAtual = Math.floor(diasDecorridos / 7);
 
-        // Dispara o fechamento do relatório a cada virada de semana (Segunda-Feira 07:00)
+        // Dispara o fechamento do relatório a cada virada de semana
         if (semanaAtual > ultimaSemanaCobrada) {
             fecharEGerarRelatorioSemanal(ultimaSemanaCobrada + 1);
             ultimaSemanaCobrada = semanaAtual;
@@ -75,6 +81,7 @@ function fecharEGerarRelatorioSemanal(numSemana) {
         qtdCaixas: qtdCaixas,
         receitas: {
             contratos: receitaAtualSemana,
+            detalhesContratos: [...detalheReceitasContratos],
             total: receitaAtualSemana
         },
         despesas: {
@@ -92,6 +99,7 @@ function fecharEGerarRelatorioSemanal(numSemana) {
     historicoRelatoriosSemanais.unshift(relatorioSemana);
 
     receitaAtualSemana = 0;
+    detalheReceitasContratos = [];
     gastosConstrucaoAtual = 0;
     gastosManutencaoChuvaAtual = 0;
     gastosMultasAtual = 0;
